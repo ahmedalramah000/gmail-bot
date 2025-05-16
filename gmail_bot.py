@@ -782,10 +782,17 @@ class GmailCodeBot:
 
 def main():
     """تشغيل البوت."""
+    # استخراج توكن البوت من المتغيرات البيئية مرة أخرى للتأكد
+    telegram_token = os.environ.get("TELEGRAM_BOT_TOKEN")
+    
     # التحقق من وجود توكن البوت
-    if not TELEGRAM_BOT_TOKEN:
-        logger.error("لم يتم تعيين TELEGRAM_BOT_TOKEN. قم بإضافته إلى ملف .env")
+    if not telegram_token:
+        logger.error("لم يتم تعيين TELEGRAM_BOT_TOKEN. قم بإضافته إلى ملف .env أو متغيرات البيئة")
         return
+    
+    # طباعة جزء من التوكن للتأكد من صحته (أول 4 أحرف فقط للأمان)
+    token_preview = telegram_token[:4] if telegram_token else "غير موجود"
+    logger.info(f"تم العثور على توكن بوت تلجرام (يبدأ بـ: {token_preview}...)")
     
     # تشغيل وظيفة الحفاظ على البوت نشطًا على Replit
     keep_alive()
@@ -796,8 +803,8 @@ def main():
             # إنشاء البوت
             bot = GmailCodeBot()
             
-            # إنشاء التطبيق - استخدم متغير TELEGRAM_BOT_TOKEN مباشرة بدلاً من "os.environ.get('TELEGRAM_BOT_TOKEN')"
-            application = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
+            # تأكد من استخدام المتغير telegram_token المُعرف محليًا وليس المتغير العام
+            application = Application.builder().token(telegram_token).build()
 
             # إعداد أوامر البوت - إظهار أمر start فقط
             commands = [
