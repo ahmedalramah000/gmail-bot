@@ -1,0 +1,49 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual Environment
+venv/
+ENV/
+.env
+
+# Logs
+*.log
+logs/
+bot.log
+watchdog.log
+
+# Credentials & Tokens (Do NOT upload these to GitHub)
+token.json
+credentials.json
+credentials.json.json
+openai_codes.json
+
+# System files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Service specific
+.replit
+replit.nix
+.config/ 
