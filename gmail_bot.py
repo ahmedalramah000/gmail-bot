@@ -796,7 +796,7 @@ def main():
             # إنشاء البوت
             bot = GmailCodeBot()
             
-            # إنشاء التطبيق
+            # إنشاء التطبيق - استخدم متغير TELEGRAM_BOT_TOKEN مباشرة بدلاً من "os.environ.get('TELEGRAM_BOT_TOKEN')"
             application = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
 
             # إعداد أوامر البوت - إظهار أمر start فقط
@@ -823,7 +823,7 @@ def main():
             logger.info("بدء تشغيل البوت...")
             
             # تشغيل البوت مع التعامل مع الأخطاء
-            application.run_polling(allowed_updates=Update.ALL_TYPES)
+            application.run_polling(allowed_updates=Update.ALL_TYPES, drop_pending_updates=True, close_loop=False)
             
             # إذا وصلنا إلى هنا، فهذا يعني أن البوت توقف بشكل طبيعي
             logger.info("تم إيقاف البوت بشكل طبيعي.")
