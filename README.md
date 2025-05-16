@@ -112,6 +112,46 @@ python gmail_bot.py
 5. استخدم الملفات المساعدة (`run_bot.sh`, `setup_service.sh`) لتشغيل البوت كخدمة نظام تعمل في الخلفية
 6. اضبط البوت ليعمل تلقائيًا عند إعادة تشغيل الخادم باستخدام `setup_autostart.sh`
 
+### تشغيل على Render (مجاني)
+
+خدمة Render توفر استضافة مجانية للتطبيقات:
+
+1. أنشئ حسابًا على [Render](https://render.com/) 
+2. انقر على "New" ثم اختر "Web Service"
+3. اختر "Build and deploy from a Git repository"
+4. اختر مستودع GitHub الخاص بك: `https://github.com/ahmedalramah000/gmail-bot`
+5. املأ التفاصيل التالية:
+   - **Name**: `telegrambot` (أو أي اسم تريده)
+   - **Environment**: `Python 3`
+   - **Build Command**: `pip install -r requirements.txt`
+   - **Start Command**: `python gmail_bot.py`
+6. اختر الخطة المجانية Free Plan
+7. في قسم "Environment Variables"، أضف المتغيرات التالية:
+   - `TELEGRAM_BOT_TOKEN`: توكن البوت الخاص بك
+   - `TELEGRAM_CHAT_ID`: معرف المحادثة الخاص بك
+   - `TARGET_EMAIL`: بريدك الإلكتروني
+   - `CREDENTIALS_URL`: رابط مباشر لملف `credentials.json.json` (من Google Drive أو Dropbox)
+   - `TOKEN_URL`: رابط مباشر لملف `token.json` (من Google Drive أو Dropbox)
+8. انقر على "Create Web Service"
+
+#### كيفية الحصول على روابط مباشرة للملفات:
+
+1. **لملفات Google Drive**:
+   - ارفع الملفات إلى Google Drive
+   - شارك الملف وحدد "أي شخص لديه الرابط"
+   - استخرج معرف الملف من رابط المشاركة (الجزء بعد `/d/` وقبل `/view`)
+   - أنشئ رابطًا بالصيغة: `https://drive.google.com/uc?export=download&id=FILE_ID`
+
+2. **لملفات Dropbox**:
+   - ارفع الملفات إلى Dropbox
+   - شارك الملف للحصول على رابط عام
+   - استبدل `dl=0` بـ `dl=1` في نهاية الرابط
+
+#### ملاحظات هامة:
+- تأكد من أن الروابط مباشرة وتؤدي إلى تحميل الملفات فورًا
+- لا تشارك روابط ملفات الاعتماد مع أي شخص
+- يمكنك استخدام خدمات أخرى مثل GitHub Gist (رابط خام) أو أي خدمة استضافة ملفات تتيح روابط مباشرة
+
 ## اعتبارات الأمان
 
 - البوت يتطلب فقط وصول للقراءة فقط إلى بريد Gmail الخاص بك
@@ -163,7 +203,7 @@ python gmail_bot.py
 ### 4. نقل الملفات إلى الخادم
 
 نقل الملفات باستخدام SCP:
-```
+```bash
 scp -i /path/to/private_key setup_oracle_cloud.sh run_bot.sh setup_autostart.sh setup_service.sh gmail_bot.py config.py keep_alive.py requirements.txt credentials.json.json token.json opc@YOUR_IP_ADDRESS:~/
 ```
 
@@ -173,7 +213,7 @@ scp -i /path/to/private_key setup_oracle_cloud.sh run_bot.sh setup_autostart.sh 
 
 1. اتصل بالخادم عبر SSH
 2. نفذ سكريبت الإعداد:
-   ```
+   ```bash
    chmod +x setup_oracle_cloud.sh
    ./setup_oracle_cloud.sh
    ```
@@ -181,7 +221,7 @@ scp -i /path/to/private_key setup_oracle_cloud.sh run_bot.sh setup_autostart.sh 
 ### 6. نقل ملفات البوت إلى المجلد المناسب
 
 1. انقل جميع ملفات البوت إلى مجلد `telegram_bot`:
-   ```
+   ```bash
    cp *.py *.json *.json.json .env ~/telegram_bot/
    ```
 
@@ -190,7 +230,7 @@ scp -i /path/to/private_key setup_oracle_cloud.sh run_bot.sh setup_autostart.sh 
 #### الطريقة 1: التشغيل باستخدام سكريبت التشغيل
 
 1. اجعل السكريبت قابل للتنفيذ ثم شغله:
-   ```
+   ```bash
    chmod +x run_bot.sh
    ./run_bot.sh
    ```
@@ -198,7 +238,7 @@ scp -i /path/to/private_key setup_oracle_cloud.sh run_bot.sh setup_autostart.sh 
 #### الطريقة 2: إعداد تشغيل تلقائي عند إعادة التشغيل
 
 1. اجعل السكريبت قابل للتنفيذ ثم شغله:
-   ```
+   ```bash
    chmod +x setup_autostart.sh
    ./setup_autostart.sh
    ```
@@ -206,7 +246,7 @@ scp -i /path/to/private_key setup_oracle_cloud.sh run_bot.sh setup_autostart.sh 
 #### الطريقة 3: إعداد البوت كخدمة نظام (موصى بها)
 
 1. اجعل السكريبت قابل للتنفيذ ثم شغله:
-   ```
+   ```bash
    chmod +x setup_service.sh
    ./setup_service.sh
    ```
@@ -216,12 +256,12 @@ scp -i /path/to/private_key setup_oracle_cloud.sh run_bot.sh setup_autostart.sh 
 بعد الإعداد، يمكنك التحقق من عمل البوت بإحدى الطرق التالية:
 
 - إذا كنت تستخدم البوت كخدمة:
-  ```
+  ```bash
   sudo systemctl status telegram-bot
   ```
 
 - لعرض سجلات البوت:
-  ```
+  ```bash
   tail -f ~/telegram_bot/bot.log
   ```
 
@@ -231,11 +271,11 @@ scp -i /path/to/private_key setup_oracle_cloud.sh run_bot.sh setup_autostart.sh 
 
 1. تأكد من وجود جميع ملفات البوت في المجلد `~/telegram_bot`
 2. تأكد من تثبيت جميع المكتبات المطلوبة:
-   ```
+   ```bash
    pip3 install -r requirements.txt
    ```
 3. تحقق من سجلات البوت:
-   ```
+   ```bash
    tail -f ~/telegram_bot/bot.log
    ```
 

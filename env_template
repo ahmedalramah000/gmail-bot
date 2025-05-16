@@ -21,4 +21,9 @@ TARGET_EMAIL=your_target_email@example.com
 CODE_SEARCH_MINUTES=60
 
 # Rate limiting
-RATE_LIMIT_PER_USER=10 
+RATE_LIMIT_PER_USER=10
+
+# Credential download URLs for cloud hosting (Render)
+# Replace with your direct download links from Google Drive, Dropbox, etc.
+CREDENTIALS_URL=https://your-hosting-service.com/credentials.json.json
+TOKEN_URL=https://your-hosting-service.com/token.json 
