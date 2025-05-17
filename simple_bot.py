@@ -102,7 +102,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f'- أرسل لي نص البريد الإلكتروني الذي يحتوي على كود OpenAI\n'
         f'- أو أرسل الكود مباشرة (6 أرقام)\n'
         f'- استخدم الأزرار أدناه لعرض آخر كود\n\n'
-        f'تمت برمجتمي بواسطه احمد الرماح',
+        f'تمت برمجتي بواسطه احمد الرماح',
         reply_markup=reply_markup
     )
 
@@ -118,7 +118,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         '- أرسل نص البريد الإلكتروني كاملاً لاستخراج الكود\n'
         '- أو أرسل الكود مباشرة (6 أرقام)\n'
         '- اضغط على الزر أدناه لعرض آخر كود تم استلامه\n\n'
-        'تمت برمجتمي بواسطه احمد الرماح',
+        'تمت برمجتي بواسطه احمد الرماح',
         reply_markup=reply_markup
     )
 
@@ -139,7 +139,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 f"📬 <b>آخر كود OpenAI</b>\n\n"
                 f"🔑 <code>{last_code['code']}</code>\n\n"
                 f"⏰ الوقت: {time_str}\n\n"
-                f"تمت برمجتمي بواسطه احمد الرماح"
+                f"تمت برمجتي بواسطه احمد الرماح"
             )
             
             keyboard = [
@@ -166,7 +166,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 time_str = timestamp.strftime("%Y-%m-%d %H:%M:%S")
                 message += f"{i+1}. <code>{code_data['code']}</code> - ⏰ {time_str}\n\n"
             
-            message += "تمت برمجتمي بواسطه احمد الرماح"
+            message += "تمت برمجتي بواسطه احمد الرماح"
             
             keyboard = [
                 [InlineKeyboardButton("🔄 تحديث", callback_data="get_recent_codes")],
@@ -203,7 +203,7 @@ async def process_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # تأكيد استلام الكود للمستخدم
         await update.message.reply_text(
             f"✅ تم استلام وحفظ الكود: <code>{code}</code>\n\n"
-            f"تمت برمجتمي بواسطه احمد الرماح",
+            f"تمت برمجتي بواسطه احمد الرماح",
             reply_markup=reply_markup,
             parse_mode='HTML'
         )
@@ -228,7 +228,7 @@ async def process_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         await update.message.reply_text(
             "لم يتم العثور على أي كود في رسالتك. الرجاء إرسال رسالة تحتوي على كود مكون من 6 أرقام.\n\n"
-            "تمت برمجتمي بواسطه احمد الرماح",
+            "تمت برمجتي بواسطه احمد الرماح",
             reply_markup=reply_markup
         )
 

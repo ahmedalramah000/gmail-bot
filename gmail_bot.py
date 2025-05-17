@@ -335,7 +335,7 @@ class GmailCodeBot:
             f'اضغط على الزر أدناه للحصول على آخر كود تحقق.\n'
             f'البريد المستخدم: <code>{TARGET_EMAIL}</code>\n'
             f'كلمة المرور: <code>Ahmed@Ramah0000</code>\n\n'
-            f'تمت برمجتمي بواسطه احمد الرماح'
+            f'تمت برمجتي بواسطه احمد الرماح'
         )
         
         await update.message.reply_text(message_text, reply_markup=reply_markup, parse_mode='HTML')
@@ -353,7 +353,7 @@ class GmailCodeBot:
             f'البريد الإلكتروني: <code>{TARGET_EMAIL}</code>\n'
             f'كلمة المرور: <code>Ahmed@Ramah0000</code>\n\n'
             f'اضغط على زر "الحصول على الكود" للحصول على آخر كود تم إرساله.\n\n'
-            f'تمت برمجتمي بواسطه احمد الرماح'
+            f'تمت برمجتي بواسطه احمد الرماح'
         )
         
         await update.message.reply_text(message, reply_markup=reply_markup, parse_mode='HTML')
@@ -373,7 +373,7 @@ class GmailCodeBot:
             f"البريد الإلكتروني: <code>{TARGET_EMAIL}</code>\n"
             f"المستخدم: <code>ahmedalramah000</code>\n\n"
             f"<i>اضغط على الزر أدناه لعرض كلمة المرور</i>\n\n"
-            f"تمت برمجتمي بواسطه احمد الرماح"
+            f"تمت برمجتي بواسطه احمد الرماح"
         )
         
         await update.message.reply_text(message, reply_markup=reply_markup, parse_mode='HTML')
@@ -388,7 +388,7 @@ class GmailCodeBot:
             f"البريد الإلكتروني: <code>{TARGET_EMAIL}</code>\n"
             f"المستخدم: <code>ahmedalramah000</code>\n"
             f"كلمة المرور: <code>Ahmed@Ramah0000</code>\n\n"
-            f"تمت برمجتمي بواسطه احمد الرماح"
+            f"تمت برمجتي بواسطه احمد الرماح"
         )
         await update.message.reply_text(password_message, parse_mode='HTML')
     
@@ -710,7 +710,7 @@ class GmailCodeBot:
                         "⚠️ لقد تجاوزت الحد الأقصى من الطلبات. يرجى المحاولة لاحقًا.\n\n"
                         f"📧 البريد: <code>{TARGET_EMAIL}</code>\n"
                         f"🔒 كلمة المرور: <code>Ahmed@Ramah0000</code>\n\n"
-                        f"تمت برمجتمي بواسطه احمد الرماح",
+                        f"تمت برمجتي بواسطه احمد الرماح",
                         reply_markup=reply_markup,
                         parse_mode='HTML'
                     )
@@ -723,7 +723,7 @@ class GmailCodeBot:
                     f"📧 <b>بيانات تسجيل الدخول:</b>\n"
                     f"البريد: <code>{TARGET_EMAIL}</code>\n"
                     f"الباسورد: <code>Ahmed@Ramah0000</code>\n\n"
-                    f"تمت برمجتمي بواسطه احمد الرماح"
+                    f"تمت برمجتي بواسطه احمد الرماح"
                 )
                 
                 await query.edit_message_text(
@@ -738,7 +738,7 @@ class GmailCodeBot:
                     f"📧 <b>بيانات تسجيل الدخول:</b>\n"
                     f"البريد: <code>{TARGET_EMAIL}</code>\n"
                     f"الباسورد: <code>Ahmed@Ramah0000</code>\n\n"
-                    f"تمت برمجتمي بواسطه احمد الرماح",
+                    f"تمت برمجتي بواسطه احمد الرماح",
                     reply_markup=reply_markup,
                     parse_mode='HTML'
                 )
@@ -757,7 +757,7 @@ class GmailCodeBot:
                 f"البريد الإلكتروني: <code>{TARGET_EMAIL}</code>\n"
                 f"المستخدم: <code>ahmedalramah000</code>\n\n"
                 f"<i>اضغط على الزر أدناه لعرض كلمة المرور</i>\n\n"
-                f"تمت برمجتمي بواسطه احمد الرماح"
+                f"تمت برمجتي بواسطه احمد الرماح"
             )
             
             await query.edit_message_text(
@@ -780,7 +780,7 @@ class GmailCodeBot:
                 f"البريد الإلكتروني: <code>{TARGET_EMAIL}</code>\n"
                 f"المستخدم: <code>ahmedalramah000</code>\n"
                 f"كلمة المرور: <code>Ahmed@Ramah0000</code>\n\n"
-                f"تمت برمجتمي بواسطه احمد الرماح"
+                f"تمت برمجتي بواسطه احمد الرماح"
             )
             
             await query.edit_message_text(
