@@ -53,7 +53,9 @@ CODE_SEARCH_MINUTES = int(os.environ.get('CODE_SEARCH_MINUTES', 60))
 RATE_LIMIT_PER_USER = int(os.environ.get('RATE_LIMIT_PER_USER', 10))
 
 # متغير لتخزين معرف الفيديو التعليمي
-TUTORIAL_VIDEO_FILE_ID = None
+TUTORIAL_VIDEO_FILE_ID = os.environ.get('TUTORIAL_VIDEO_FILE_ID', None)
+if TUTORIAL_VIDEO_FILE_ID == 'None':
+    TUTORIAL_VIDEO_FILE_ID = None
 TUTORIAL_VIDEO_FILE = "tutorial_video.json"
 
 # دوال لحفظ واسترجاع معرف الفيديو
@@ -1130,18 +1132,9 @@ class GmailCodeBot:
                 await query.answer("⛔ هذا الزر متاح فقط للمسؤول", show_alert=True)
                 return
                 
-            # حذف الفيديو
-            global TUTORIAL_VIDEO_FILE_ID
-            TUTORIAL_VIDEO_FILE_ID = None
-            
-            # حذف ملف تخزين معرف الفيديو إذا كان موجودًا
+            # حذف الفيديو وحفظ التغييرات
+            save_video_id(None)
             success = True
-            if os.path.exists(TUTORIAL_VIDEO_FILE):
-                try:
-                    os.remove(TUTORIAL_VIDEO_FILE)
-                except Exception as e:
-                    logger.error(f"خطأ في حذف ملف معرف الفيديو: {e}")
-                    success = False
             
             # لوحة أزرار العودة
             keyboard = [
