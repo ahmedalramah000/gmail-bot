@@ -464,6 +464,7 @@ class GmailCodeBot:
     
     async def upload_tutorial_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """أمر لرفع فيديو تعليمي جديد (مُتاح فقط للمسؤول)."""
+        global TUTORIAL_VIDEO_FILE_ID
         user_id = str(update.effective_user.id)
         # التحقق من أن المستخدم هو المسؤول
         if ADMIN_CHAT_ID and user_id != ADMIN_CHAT_ID:
@@ -478,7 +479,6 @@ class GmailCodeBot:
             return
             
         # حفظ معرف الفيديو في المتغير العام
-        global TUTORIAL_VIDEO_FILE_ID
         TUTORIAL_VIDEO_FILE_ID = update.message.reply_to_message.video.file_id
         
         # حفظ معرف الفيديو في ملف
@@ -495,14 +495,13 @@ class GmailCodeBot:
     
     async def delete_tutorial_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """أمر لحذف الفيديو التعليمي (مُتاح فقط للمسؤول)."""
+        global TUTORIAL_VIDEO_FILE_ID
         user_id = str(update.effective_user.id)
         # التحقق من أن المستخدم هو المسؤول
         if ADMIN_CHAT_ID and user_id != ADMIN_CHAT_ID:
             await update.message.reply_text("⛔ هذا الأمر متاح فقط للمسؤول")
             return
             
-        global TUTORIAL_VIDEO_FILE_ID
-        
         # حذف الفيديو
         if TUTORIAL_VIDEO_FILE_ID:
             TUTORIAL_VIDEO_FILE_ID = None
@@ -522,6 +521,7 @@ class GmailCodeBot:
     
     async def show_admin_tutorial_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """أمر لعرض الفيديو التعليمي المخزن (مُتاح فقط للمسؤول)."""
+        global TUTORIAL_VIDEO_FILE_ID
         user_id = str(update.effective_user.id)
         # التحقق من أن المستخدم هو المسؤول
         if ADMIN_CHAT_ID and user_id != ADMIN_CHAT_ID:
@@ -840,7 +840,8 @@ class GmailCodeBot:
         return None
         
     async def button_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """التعامل مع نقرات الأزرار."""
+        """معالجة نقرات الأزرار."""
+        global TUTORIAL_VIDEO_FILE_ID
         query = update.callback_query
         user_id = str(update.effective_user.id)
         await query.answer()
