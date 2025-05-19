@@ -52,6 +52,34 @@ CODE_SEARCH_MINUTES = int(os.environ.get('CODE_SEARCH_MINUTES', 60))
 # الحد الأقصى للاستعلامات لكل مستخدم
 RATE_LIMIT_PER_USER = int(os.environ.get('RATE_LIMIT_PER_USER', 10))
 
+# متغير لتخزين معرف الفيديو التعليمي
+TUTORIAL_VIDEO_FILE_ID = None
+TUTORIAL_VIDEO_FILE = "tutorial_video.json"
+
+# دوال لحفظ واسترجاع معرف الفيديو
+def save_video_id(file_id):
+    """حفظ معرف الفيديو في ملف"""
+    try:
+        with open(TUTORIAL_VIDEO_FILE, 'w') as f:
+            json.dump({"file_id": file_id}, f)
+        return True
+    except Exception as e:
+        logger.error(f"خطأ في حفظ معرف الفيديو: {e}")
+        return False
+
+def load_video_id():
+    """استرجاع معرف الفيديو من الملف"""
+    global TUTORIAL_VIDEO_FILE_ID
+    try:
+        if os.path.exists(TUTORIAL_VIDEO_FILE):
+            with open(TUTORIAL_VIDEO_FILE, 'r') as f:
+                data = json.load(f)
+                TUTORIAL_VIDEO_FILE_ID = data.get("file_id")
+                logger.info(f"تم تحميل معرف الفيديو: {TUTORIAL_VIDEO_FILE_ID}")
+    except Exception as e:
+        logger.error(f"خطأ في استرجاع معرف الفيديو: {e}")
+        TUTORIAL_VIDEO_FILE_ID = None
+
 # كلمات مفتاحية لتحديد رسائل إعادة تعيين كلمة المرور
 PASSWORD_RESET_KEYWORDS = [
     "password reset", 
@@ -410,6 +438,90 @@ class GmailCodeBot:
             f"تمت برمجتي بواسطه احمد الرماح"
         )
         await update.message.reply_text(password_message, parse_mode='HTML')
+    
+    async def upload_tutorial_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """أمر لرفع فيديو تعليمي جديد (مُتاح فقط للمسؤول)."""
+        user_id = str(update.effective_user.id)
+        # التحقق من أن المستخدم هو المسؤول
+        if ADMIN_CHAT_ID and user_id != ADMIN_CHAT_ID:
+            await update.message.reply_text("⛔ هذا الأمر متاح فقط للمسؤول")
+            return
+            
+        # التحقق من وجود رد على رسالة تحتوي على فيديو
+        if not update.message.reply_to_message or not update.message.reply_to_message.video:
+            await update.message.reply_text(
+                "⚠️ يرجى الرد على رسالة تحتوي على فيديو باستخدام الأمر /upload_tutorial"
+            )
+            return
+            
+        # حفظ معرف الفيديو في المتغير العام
+        global TUTORIAL_VIDEO_FILE_ID
+        TUTORIAL_VIDEO_FILE_ID = update.message.reply_to_message.video.file_id
+        
+        # حفظ معرف الفيديو في ملف
+        save_success = save_video_id(TUTORIAL_VIDEO_FILE_ID)
+        
+        if save_success:
+            await update.message.reply_text(
+                "✅ تم حفظ الفيديو التعليمي بنجاح! سيتم عرضه للمستخدمين عند طلبهم مشاهدة الشرح."
+            )
+        else:
+            await update.message.reply_text(
+                "⚠️ تم تخزين الفيديو بشكل مؤقت، لكن قد لا يتم حفظه بعد إعادة تشغيل البوت."
+            )
+    
+    async def delete_tutorial_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """أمر لحذف الفيديو التعليمي (مُتاح فقط للمسؤول)."""
+        user_id = str(update.effective_user.id)
+        # التحقق من أن المستخدم هو المسؤول
+        if ADMIN_CHAT_ID and user_id != ADMIN_CHAT_ID:
+            await update.message.reply_text("⛔ هذا الأمر متاح فقط للمسؤول")
+            return
+            
+        global TUTORIAL_VIDEO_FILE_ID
+        
+        # حذف الفيديو
+        if TUTORIAL_VIDEO_FILE_ID:
+            TUTORIAL_VIDEO_FILE_ID = None
+            
+            # حذف ملف تخزين معرف الفيديو إذا كان موجودًا
+            if os.path.exists(TUTORIAL_VIDEO_FILE):
+                try:
+                    os.remove(TUTORIAL_VIDEO_FILE)
+                    await update.message.reply_text("✅ تم حذف الفيديو التعليمي بنجاح!")
+                except Exception as e:
+                    logger.error(f"خطأ في حذف ملف معرف الفيديو: {e}")
+                    await update.message.reply_text("⚠️ تم حذف الفيديو من الذاكرة، لكن قد تكون هناك مشكلة في حذف الملف.")
+            else:
+                await update.message.reply_text("✅ تم حذف الفيديو التعليمي بنجاح!")
+        else:
+            await update.message.reply_text("ℹ️ لا يوجد فيديو تعليمي مخزن حاليًا.")
+    
+    async def show_admin_tutorial_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """أمر لعرض الفيديو التعليمي المخزن (مُتاح فقط للمسؤول)."""
+        user_id = str(update.effective_user.id)
+        # التحقق من أن المستخدم هو المسؤول
+        if ADMIN_CHAT_ID and user_id != ADMIN_CHAT_ID:
+            await update.message.reply_text("⛔ هذا الأمر متاح فقط للمسؤول")
+            return
+            
+        # التحقق من وجود فيديو مخزن
+        if not TUTORIAL_VIDEO_FILE_ID:
+            await update.message.reply_text(
+                "ℹ️ لا يوجد فيديو تعليمي مخزن حاليًا. استخدم الأمر /upload_tutorial للرد على فيديو لتخزينه."
+            )
+            return
+            
+        # إرسال الفيديو المخزن
+        await context.bot.send_video(
+            chat_id=update.effective_chat.id,
+            video=TUTORIAL_VIDEO_FILE_ID,
+            caption=(
+                f"🎬 <b>الفيديو التعليمي المخزن حاليًا</b>\n\n"
+                f"يمكنك استخدام الأمر /delete_tutorial لحذف هذا الفيديو."
+            ),
+            parse_mode='HTML'
+        )
     
     def build_email_query(self) -> str:
         """بناء استعلام البحث في Gmail."""
@@ -847,28 +959,51 @@ class GmailCodeBot:
             ]
             reply_markup = InlineKeyboardMarkup(keyboard)
             
-            video_message = (
-                f"<b>🎬 شرح طريقة تسجيل الدخول إلى ChatGPT:</b>\n\n"
-                f"يمكنك مشاهدة الفيديو التعليمي من خلال الرابط التالي:\n"
-                f"<a href='https://youtu.be/your_tutorial_video_id'>اضغط هنا لمشاهدة الفيديو</a>\n\n"
-                f"<b>خطوات تسجيل الدخول:</b>\n"
-                f"1. ادخل البريد الإلكتروني: <code>{TARGET_EMAIL}</code>\n"
-                f"2. ادخل كلمة المرور: <code>{PASSWORD}</code>\n"
-                f"3. اضغط على 'try another method' من الأسفل\n"
-                f"4. اختر البريد الإلكتروني (الخيار الثالث)\n"
-                f"5. ادخل كود التحقق الذي حصلت عليه من البوت\n\n"
-                f"تمت برمجتي بواسطه احمد الرماح"
-            )
-            
-            await query.edit_message_text(
-                text=video_message,
-                reply_markup=reply_markup,
-                parse_mode='HTML',
-                disable_web_page_preview=False
-            )
+            # التحقق من وجود فيديو تم رفعه
+            if TUTORIAL_VIDEO_FILE_ID:
+                # إرسال الفيديو المخزن
+                await context.bot.send_video(
+                    chat_id=update.effective_chat.id,
+                    video=TUTORIAL_VIDEO_FILE_ID,
+                    caption=(
+                        f"🎬 <b>شرح طريقة تسجيل الدخول إلى ChatGPT</b>\n\n"
+                        f"<b>خطوات تسجيل الدخول:</b>\n"
+                        f"1. ادخل البريد الإلكتروني: <code>{TARGET_EMAIL}</code>\n"
+                        f"2. ادخل كلمة المرور: <code>{PASSWORD}</code>\n"
+                        f"3. اضغط على 'try another method' من الأسفل\n"
+                        f"4. اختر البريد الإلكتروني (الخيار الثالث)\n"
+                        f"5. ادخل كود التحقق الذي حصلت عليه من البوت\n\n"
+                        f"تمت برمجتي بواسطه احمد الرماح"
+                    ),
+                    parse_mode='HTML',
+                    reply_markup=reply_markup
+                )
+                # حذف الرسالة السابقة
+                await query.delete_message()
+            else:
+                # إذا لم يكن هناك فيديو تم رفعه، إرسال رسالة نصية
+                text_message = (
+                    f"<b>🎬 شرح طريقة تسجيل الدخول إلى ChatGPT:</b>\n\n"
+                    f"<b>خطوات تسجيل الدخول:</b>\n"
+                    f"1. ادخل البريد الإلكتروني: <code>{TARGET_EMAIL}</code>\n"
+                    f"2. ادخل كلمة المرور: <code>{PASSWORD}</code>\n"
+                    f"3. اضغط على 'try another method' من الأسفل\n"
+                    f"4. اختر البريد الإلكتروني (الخيار الثالث)\n"
+                    f"5. ادخل كود التحقق الذي حصلت عليه من البوت\n\n"
+                    f"تمت برمجتي بواسطه احمد الرماح"
+                )
+                
+                await query.edit_message_text(
+                    text=text_message,
+                    reply_markup=reply_markup,
+                    parse_mode='HTML'
+                )
 
 def main():
     """تشغيل البوت."""
+    # تحميل معرف الفيديو التعليمي إذا كان موجودًا
+    load_video_id()
+    
     # استخراج توكن البوت من المتغيرات البيئية مرة أخرى للتأكد
     telegram_token = os.environ.get("TELEGRAM_BOT_TOKEN")
     
@@ -903,6 +1038,9 @@ def main():
             application.add_handler(CommandHandler("help", bot.help_command))
             application.add_handler(CommandHandler("credentials", bot.credentials_command))
             application.add_handler(CommandHandler("showpassword", bot.show_password_command))
+            application.add_handler(CommandHandler("upload_tutorial", bot.upload_tutorial_command))
+            application.add_handler(CommandHandler("delete_tutorial", bot.delete_tutorial_command))
+            application.add_handler(CommandHandler("show_admin_tutorial", bot.show_admin_tutorial_command))
             application.add_handler(CallbackQueryHandler(bot.button_callback))
 
             # ضبط الأوامر الظاهرة في واجهة البوت
