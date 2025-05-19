@@ -326,7 +326,8 @@ class GmailCodeBot:
     async def start(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """الرد عند بدء استخدام البوت."""
         keyboard = [
-            [InlineKeyboardButton("🔑 الحصول على الكود", callback_data="get_chatgpt_code")]
+            [InlineKeyboardButton("🔑 الحصول على الكود", callback_data="get_chatgpt_code")],
+            [InlineKeyboardButton("🎬 شاهد شرح طريقة الدخول", callback_data="show_tutorial")]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
         
@@ -348,7 +349,8 @@ class GmailCodeBot:
     async def help_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """إرسال رسالة المساعدة."""
         keyboard = [
-            [InlineKeyboardButton("🔑 الحصول على الكود", callback_data="get_chatgpt_code")]
+            [InlineKeyboardButton("🔑 الحصول على الكود", callback_data="get_chatgpt_code")],
+            [InlineKeyboardButton("🎬 شاهد شرح طريقة الدخول", callback_data="show_tutorial")]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
         
@@ -716,13 +718,19 @@ class GmailCodeBot:
             code_info = self.get_latest_verification_code(user_id)
             
             keyboard = [
-                [InlineKeyboardButton("🔄 تحديث", callback_data="get_chatgpt_code")]
+                [InlineKeyboardButton("🔄 تحديث", callback_data="get_chatgpt_code")],
+                [InlineKeyboardButton("🎬 شاهد شرح طريقة الدخول", callback_data="show_tutorial")]
             ]
             reply_markup = InlineKeyboardMarkup(keyboard)
             
             # تعديل الشرط لتجاهل رسالة خطأ ملف بيانات الاعتماد
             if code_info:
                 if "error" in code_info and code_info["error"] == "rate_limit":
+                    keyboard_rate_limit = [
+                        [InlineKeyboardButton("🎬 شاهد شرح طريقة الدخول", callback_data="show_tutorial")]
+                    ]
+                    reply_markup_rate_limit = InlineKeyboardMarkup(keyboard_rate_limit)
+                    
                     await query.edit_message_text(
                         "⚠️ لقد تجاوزت الحد الأقصى من الطلبات. يرجى المحاولة لاحقًا.\n\n"
                         f"📧 البريد: <code>{TARGET_EMAIL}</code>\n"
@@ -732,7 +740,7 @@ class GmailCodeBot:
                         f'2. اختر البريد الإلكتروني (الخيار الثالث)\n'
                         f'3. أدخل الكود الذي ستحصل عليه\n\n'
                         f"تمت برمجتي بواسطه احمد الرماح",
-                        reply_markup=reply_markup,
+                        reply_markup=reply_markup_rate_limit,
                         parse_mode='HTML'
                     )
                     return
@@ -758,6 +766,12 @@ class GmailCodeBot:
                 )
             else:
                 # رسالة محسنة عند عدم وجود كود
+                keyboard_no_code = [
+                    [InlineKeyboardButton("🔄 تحديث", callback_data="get_chatgpt_code")],
+                    [InlineKeyboardButton("🎬 شاهد شرح طريقة الدخول", callback_data="show_tutorial")]
+                ]
+                reply_markup_no_code = InlineKeyboardMarkup(keyboard_no_code)
+                
                 await query.edit_message_text(
                     f"❌ لم يتم العثور على كود تحقق\nحاول مره اخري\n\n"
                     f"📧 <b>بيانات تسجيل الدخول:</b>\n"
@@ -768,7 +782,7 @@ class GmailCodeBot:
                     f'2. اختر البريد الإلكتروني (الخيار الثالث)\n'
                     f'3. أدخل الكود الذي ستحصل عليه\n\n'
                     f"تمت برمجتي بواسطه احمد الرماح",
-                    reply_markup=reply_markup,
+                    reply_markup=reply_markup_no_code,
                     parse_mode='HTML'
                 )
         
@@ -824,6 +838,33 @@ class GmailCodeBot:
                 text=message,
                 reply_markup=reply_markup,
                 parse_mode='HTML'
+            )
+        
+        elif query.data == "show_tutorial":
+            # إرسال الفيديو التعليمي
+            keyboard = [
+                [InlineKeyboardButton("🔑 الحصول على الكود", callback_data="get_chatgpt_code")]
+            ]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            
+            video_message = (
+                f"<b>🎬 شرح طريقة تسجيل الدخول إلى ChatGPT:</b>\n\n"
+                f"يمكنك مشاهدة الفيديو التعليمي من خلال الرابط التالي:\n"
+                f"<a href='https://youtu.be/your_tutorial_video_id'>اضغط هنا لمشاهدة الفيديو</a>\n\n"
+                f"<b>خطوات تسجيل الدخول:</b>\n"
+                f"1. ادخل البريد الإلكتروني: <code>{TARGET_EMAIL}</code>\n"
+                f"2. ادخل كلمة المرور: <code>{PASSWORD}</code>\n"
+                f"3. اضغط على 'try another method' من الأسفل\n"
+                f"4. اختر البريد الإلكتروني (الخيار الثالث)\n"
+                f"5. ادخل كود التحقق الذي حصلت عليه من البوت\n\n"
+                f"تمت برمجتي بواسطه احمد الرماح"
+            )
+            
+            await query.edit_message_text(
+                text=video_message,
+                reply_markup=reply_markup,
+                parse_mode='HTML',
+                disable_web_page_preview=False
             )
 
 def main():
