@@ -5,8 +5,36 @@ GMAIL_TOKEN_FILE=token.json
 
 # Telegram Bot settings
 # Replace these with your actual values
-TELEGRAM_BOT_TOKEN=your_telegram_bot_token_here
-TELEGRAM_CHAT_ID=your_telegram_chat_id_here
+TELEGRAM_BOT_TOKEN=
+TELEGRAM_CHAT_ID=
+
+# Email settings
+# Interval is in seconds, default is 60 (check every minute)
+EMAIL_CHECK_INTERVAL=60
+# Add or remove email addresses as needed, comma-separated
+EMAIL_SENDERS=no-reply@openai.com,login-code@openai.com,noreply@tm.openai.com
+
+# Target email
+TARGET_EMAIL=ahmedalramah000@gmail.com
+PASSWORD=0001A@hmEd_Ram4h!
+
+# Code search minutes
+CODE_SEARCH_MINUTES=60
+
+# Rate limiting
+RATE_LIMIT_PER_USER=10
+
+# Credential download URLs for cloud hosting (Render)
+# Replace with your direct download links from Google Drive, Dropbox, etc.
+CREDENTIALS_URL=https://your-hosting-service.com/credentials.json.json
+TOKEN_URL=https://your-hosting-service.com/token.json
+
+# إعدادات طريقة المصادقة مع Gmail
+# اختر طريقة المصادقة:
+# - لاستخدام OAuth (الطريقة الافتراضية): اجعل USE_APP_PASSWORD=false
+# - لاستخدام App Password: اجعل USE_APP_PASSWORD=true وأدخل كلمة مرور التطبيق في APP_PASSWORD
+USE_APP_PASSWORD=false
+APP_PASSWORD=
 
 # Email settings
 # Interval is in seconds, default is 60 (check every minute)

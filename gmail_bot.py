@@ -23,6 +23,10 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
 from googleapiclient.discovery import build
 from dotenv import load_dotenv
+import smtplib
+import imaplib
+import email
+from email.header import decode_header
 
 # تهيئة التسجيل
 logging.basicConfig(
@@ -51,6 +55,10 @@ EMAIL_SENDERS = os.environ.get('EMAIL_SENDERS', "no-reply@openai.com,login-code@
 CODE_SEARCH_MINUTES = int(os.environ.get('CODE_SEARCH_MINUTES', 60))
 # الحد الأقصى للاستعلامات لكل مستخدم
 RATE_LIMIT_PER_USER = int(os.environ.get('RATE_LIMIT_PER_USER', 10))
+
+# إعدادات App Password
+USE_APP_PASSWORD = os.environ.get('USE_APP_PASSWORD', 'false').lower() == 'true'
+APP_PASSWORD = os.environ.get('APP_PASSWORD', '')
 
 # متغير لتخزين معرف الفيديو التعليمي
 TUTORIAL_VIDEO_FILE_ID = os.environ.get('TUTORIAL_VIDEO_FILE_ID', None)
@@ -112,9 +120,44 @@ class GmailClient:
     def __init__(self, credentials_file: str, token_file: str):
         self.credentials_file = credentials_file
         self.token_file = token_file
-        self.service = self._authenticate()
+        self.service = None
+        self.auth_method = "oauth"  # Default authentication method
         
-    def _authenticate(self):
+        # تحقق مما إذا كان يجب استخدام App Password
+        if USE_APP_PASSWORD and APP_PASSWORD:
+            logger.info("استخدام App Password للمصادقة")
+            self.auth_method = "app_password"
+            self._authenticate_with_app_password()
+        else:
+            logger.info("استخدام OAuth للمصادقة")
+            self.service = self._authenticate_oauth()
+    
+    def _authenticate_with_app_password(self):
+        """المصادقة مع Gmail باستخدام App Password."""
+        try:
+            # This method doesn't create a service object like oauth, but instead
+            # sets up the class to use IMAP directly when methods are called
+            logger.info("تم إعداد المصادقة باستخدام App Password")
+            self._test_app_password_connection()
+            return True
+        except Exception as e:
+            logger.error(f"فشل المصادقة باستخدام App Password: {e}")
+            return None
+    
+    def _test_app_password_connection(self):
+        """اختبار الاتصال باستخدام App Password."""
+        try:
+            # Try to connect to Gmail using IMAP
+            mail = imaplib.IMAP4_SSL('imap.gmail.com')
+            mail.login(TARGET_EMAIL, APP_PASSWORD)
+            mail.logout()
+            logger.info("تم الاتصال بنجاح باستخدام App Password")
+            return True
+        except Exception as e:
+            logger.error(f"فشل اختبار الاتصال باستخدام App Password: {e}")
+            raise e
+    
+    def _authenticate_oauth(self):
         """المصادقة مع Gmail API باستخدام OAuth."""
         # التحقق من وجود ملف بيانات الاعتماد
         if not os.path.exists(self.credentials_file):
@@ -139,7 +182,23 @@ class GmailClient:
             try:
                 if creds and creds.expired and creds.refresh_token:
                     logger.info("تحديث التوكن المنتهي...")
-                    creds.refresh(Request())
+                    try:
+                        creds.refresh(Request())
+                        logger.info("تم تحديث التوكن بنجاح")
+                    except Exception as refresh_error:
+                        logger.error(f"فشل تحديث التوكن: {refresh_error}")
+                        logger.info("إعادة إنشاء التوكن من البداية...")
+                        # فشل التحديث، نقوم بإعادة المصادقة من البداية
+                        if os.path.exists(self.token_file):
+                            # حذف ملف التوكن القديم
+                            os.remove(self.token_file)
+                            logger.info("تم حذف ملف التوكن القديم")
+                        
+                        # إنشاء توكن جديد
+                        flow = InstalledAppFlow.from_client_secrets_file(
+                            self.credentials_file, GMAIL_API_SCOPES
+                        )
+                        creds = flow.run_local_server(port=0)
                 else:
                     logger.info("بدء عملية المصادقة الجديدة...")
                     flow = InstalledAppFlow.from_client_secrets_file(
@@ -163,6 +222,13 @@ class GmailClient:
     
     def list_messages(self, query: str, max_results: int = 10) -> List[dict]:
         """سرد الرسائل التي تطابق الاستعلام المحدد."""
+        if self.auth_method == "oauth":
+            return self._list_messages_oauth(query, max_results)
+        else:
+            return self._list_messages_app_password(query, max_results)
+            
+    def _list_messages_oauth(self, query: str, max_results: int = 10) -> List[dict]:
+        """سرد الرسائل باستخدام OAuth."""
         if not self.service:
             logger.error("خدمة Gmail غير متاحة")
             return []
@@ -177,11 +243,67 @@ class GmailClient:
             messages = results.get('messages', [])
             return messages
         except Exception as e:
-            logger.error(f"خطأ في سرد الرسائل: {e}")
+            logger.error(f"خطأ في سرد الرسائل (OAuth): {e}")
+            return []
+    
+    def _list_messages_app_password(self, query: str, max_results: int = 10) -> List[dict]:
+        """سرد الرسائل باستخدام App Password."""
+        try:
+            # Connect to Gmail
+            mail = imaplib.IMAP4_SSL('imap.gmail.com')
+            mail.login(TARGET_EMAIL, APP_PASSWORD)
+            mail.select('inbox')
+            
+            # Build search criteria from query
+            # For simplicity, we'll translate the most common queries
+            search_criteria = 'ALL'
+            if 'from:' in query:
+                sender = query.split('from:')[1].strip().split(' ')[0]
+                search_criteria = f'(FROM "{sender}")'
+            
+            # Add date criteria if needed
+            if 'after:' in query:
+                date_str = query.split('after:')[1].strip().split(' ')[0]
+                # Convert date format to IMAP format (01-Jan-2020)
+                try:
+                    date_obj = datetime.strptime(date_str, '%Y/%m/%d')
+                    date_imap = date_obj.strftime('%d-%b-%Y')
+                    search_criteria += f' (SINCE "{date_imap}")'
+                except Exception as e:
+                    logger.error(f"خطأ في تحويل التاريخ: {e}")
+            
+            # Perform search
+            status, messages = mail.search(None, search_criteria)
+            
+            if status != 'OK':
+                logger.error(f"فشل البحث في البريد: {status}")
+                return []
+            
+            # Convert to list of IDs
+            message_ids = messages[0].split()
+            if max_results > 0:
+                message_ids = message_ids[-max_results:]
+            
+            # Format to match Gmail API format
+            result = []
+            for msg_id in message_ids:
+                result.append({'id': msg_id.decode('utf-8')})
+            
+            mail.logout()
+            return result
+        except Exception as e:
+            logger.error(f"خطأ في سرد الرسائل (App Password): {e}")
             return []
     
     def get_message(self, msg_id: str) -> Optional[dict]:
         """الحصول على رسالة محددة بواسطة المعرف."""
+        if self.auth_method == "oauth":
+            return self._get_message_oauth(msg_id)
+        else:
+            return self._get_message_app_password(msg_id)
+            
+    def _get_message_oauth(self, msg_id: str) -> Optional[dict]:
+        """الحصول على رسالة باستخدام OAuth."""
         if not self.service:
             logger.error("خدمة Gmail غير متاحة")
             return None
@@ -194,7 +316,81 @@ class GmailClient:
                 .execute()
             )
         except Exception as e:
-            logger.error(f"خطأ في الحصول على الرسالة {msg_id}: {e}")
+            logger.error(f"خطأ في الحصول على الرسالة {msg_id} (OAuth): {e}")
+            return None
+    
+    def _get_message_app_password(self, msg_id: str) -> Optional[dict]:
+        """الحصول على رسالة باستخدام App Password."""
+        try:
+            # Connect to Gmail
+            mail = imaplib.IMAP4_SSL('imap.gmail.com')
+            mail.login(TARGET_EMAIL, APP_PASSWORD)
+            mail.select('inbox')
+            
+            # Fetch the message
+            status, msg_data = mail.fetch(msg_id.encode(), '(RFC822)')
+            
+            if status != 'OK':
+                logger.error(f"فشل الحصول على الرسالة {msg_id}: {status}")
+                mail.logout()
+                return None
+            
+            # Parse the message
+            raw_email = msg_data[0][1]
+            email_message = email.message_from_bytes(raw_email)
+            
+            # Convert to format similar to Gmail API
+            result = {
+                'id': msg_id,
+                'payload': {
+                    'headers': [],
+                    'body': {'data': ''},
+                    'parts': []
+                },
+                'internalDate': str(int(time.time() * 1000))
+            }
+            
+            # Extract headers
+            for header in email_message.items():
+                result['payload']['headers'].append({
+                    'name': header[0],
+                    'value': header[1]
+                })
+            
+            # Extract body
+            if email_message.is_multipart():
+                for part in email_message.walk():
+                    content_type = part.get_content_type()
+                    content_disposition = str(part.get("Content-Disposition"))
+                    
+                    if "attachment" not in content_disposition:
+                        # Get the body
+                        try:
+                            body = part.get_payload(decode=True)
+                            if body:
+                                # Convert to base64 to match Gmail API format
+                                encoded = base64.urlsafe_b64encode(body).decode()
+                                part_obj = {
+                                    'mimeType': content_type,
+                                    'body': {'data': encoded}
+                                }
+                                result['payload']['parts'].append(part_obj)
+                        except Exception as e:
+                            logger.error(f"خطأ في استخراج جزء الرسالة: {e}")
+            else:
+                # Not multipart - get the content
+                try:
+                    body = email_message.get_payload(decode=True)
+                    if body:
+                        encoded = base64.urlsafe_b64encode(body).decode()
+                        result['payload']['body']['data'] = encoded
+                except Exception as e:
+                    logger.error(f"خطأ في استخراج نص الرسالة: {e}")
+            
+            mail.logout()
+            return result
+        except Exception as e:
+            logger.error(f"خطأ في الحصول على الرسالة {msg_id} (App Password): {e}")
             return None
 
 

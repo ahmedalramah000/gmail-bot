@@ -12,13 +12,14 @@
 - يتعامل مع تنسيقات البريد المختلفة وترميز Base64
 - تمييز بين أكواد تسجيل الدخول وأكواد إعادة تعيين كلمة المرور
 - واجهة زر سهلة الاستخدام للحصول على آخر كود
+- دعم المصادقة عبر App Password أو OAuth (خياران مختلفان للمصادقة)
 
 ## الإعداد
 
 ### المتطلبات
 
 - Python 3.6+
-- حساب في Google Cloud Platform
+- حساب في Google Cloud Platform (إذا كنت تستخدم OAuth) أو App Password من Gmail (أسهل)
 - بوت تلجرام ومعرف محادثة
 
 ### 1. تثبيت المكتبات المطلوبة
@@ -27,7 +28,11 @@
 pip install -r requirements.txt
 ```
 
-### 2. إعداد مشروع Google Cloud وتفعيل Gmail API
+### 2. طرق المصادقة مع Gmail
+
+يمكنك استخدام إحدى الطريقتين التاليتين للمصادقة مع Gmail:
+
+#### الطريقة 1: استخدام OAuth (الطريقة التقليدية)
 
 1. انتقل إلى [لوحة تحكم Google Cloud](https://console.cloud.google.com/)
 2. أنشئ مشروعًا جديدًا
@@ -38,6 +43,20 @@ pip install -r requirements.txt
 7. قم بتكوين شاشة الموافقة على OAuth (يمكن أن تكون "External" للاختبار)
 8. اختر "Desktop app" كنوع التطبيق
 9. قم بتنزيل ملف JSON وحفظه باسم `credentials.json.json` في مجلد المشروع
+
+#### الطريقة 2: استخدام App Password (أسهل وموصى بها لتجنب مشاكل التوكن)
+
+1. قم بتفعيل المصادقة الثنائية على حساب Google الخاص بك:
+   - انتقل إلى [إعدادات أمان Google](https://myaccount.google.com/security)
+   - قم بتفعيل المصادقة ذات الخطوتين إذا لم تكن مفعلة بالفعل
+2. إنشاء كلمة مرور للتطبيق:
+   - انتقل إلى [كلمات مرور التطبيقات](https://myaccount.google.com/apppasswords)
+   - اختر "تطبيق آخر" واكتب اسمًا مثل "بوت تلجرام"
+   - انسخ كلمة المرور المكونة من 16 حرفًا التي تم إنشاؤها
+3. قم بتعديل ملف `.env` أو `env_template` وضبط:
+   - `USE_APP_PASSWORD=true`
+   - `APP_PASSWORD=YOUR_APP_PASSWORD` (كلمة المرور التي حصلت عليها)
+4. مع هذه الطريقة، لن تحتاج إلى ملفات `credentials.json.json` أو `token.json`
 
 ### 3. إنشاء بوت تلجرام
 
@@ -54,21 +73,33 @@ pip install -r requirements.txt
 قم بإنشاء ملف `.env` في مجلد المشروع بالمحتوى التالي (أو قم بتعديل ملف `env_template`):
 
 ```
-# Telegram Bot Settings
+# إعدادات التليجرام
 TELEGRAM_BOT_TOKEN=your_telegram_bot_token_here
 TELEGRAM_CHAT_ID=your_telegram_chat_id_here
 
-# Gmail API Settings
-GMAIL_CREDENTIALS_FILE=credentials.json.json
-GMAIL_TOKEN_FILE=token.json
-
-# Email Settings
+# البريد الإلكتروني المستخدم
 TARGET_EMAIL=your_target_email@example.com
+PASSWORD=your_password
+
+# إعدادات طريقة المصادقة مع Gmail
+# اختر طريقة المصادقة:
+# - لاستخدام OAuth (الطريقة الافتراضية): اجعل USE_APP_PASSWORD=false
+# - لاستخدام App Password: اجعل USE_APP_PASSWORD=true وأدخل كلمة مرور التطبيق في APP_PASSWORD
+USE_APP_PASSWORD=false
+APP_PASSWORD=
+
+# قائمة مرسلي البريد الإلكتروني المسموح بهم
 EMAIL_SENDERS=no-reply@openai.com,login-code@openai.com,noreply@tm.openai.com
+
+# المدة الزمنية للبحث عن الأكواد (بالدقائق)
 CODE_SEARCH_MINUTES=60
 
-# Rate Limiting
+# الحد الأقصى للاستعلامات لكل مستخدم
 RATE_LIMIT_PER_USER=10
+
+# ملفات Gmail API (لازمة فقط إذا كنت تستخدم OAuth)
+GMAIL_CREDENTIALS_FILE=credentials.json.json
+GMAIL_TOKEN_FILE=token.json
 ```
 
 استبدل القيم الموجودة بالقيم الفعلية الخاصة بك.
@@ -160,6 +191,10 @@ python gmail_bot.py
 - لا تشارك أبدًا ملفات `credentials.json.json` أو `token.json` الخاصة بك
 
 ## استكشاف الأخطاء وإصلاحها
+
+- **خطأ invalid_grant: Token has been expired or revoked**: هذا يعني أن توكن OAuth قد انتهت صلاحيته. يمكنك حل هذه المشكلة بإحدى الطريقتين:
+  1. حذف ملف `token.json` وإعادة تشغيل البوت ليقوم بعملية المصادقة من جديد
+  2. التحويل لاستخدام App Password بدلاً من OAuth (أنظر القسم الخاص بطرق المصادقة)
 
 - **أخطاء المصادقة**: احذف ملف `token.json` وأعد تشغيل البوت لإعادة المصادقة.
 - **لم يتم العثور على رسائل بريد إلكتروني**: تحقق من استخدام عناوين البريد الإلكتروني الصحيحة للمرسل في التكوين الخاص بك.
@@ -286,4 +321,4 @@ scp -i /path/to/private_key setup_oracle_cloud.sh run_bot.sh setup_autostart.sh 
 - إيقاف البوت: `sudo systemctl stop telegram-bot`
 - عرض سجلات الخدمة: `journalctl -u telegram-bot`
 - عرض جلسات screen النشطة: `screen -ls`
-- الاتصال بجلسة screen: `screen -r telegram_bot` 
+- الاتصال بجلسة screen: `screen -r telegram_bot`

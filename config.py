@@ -24,6 +24,11 @@ CODE_SEARCH_MINUTES = int(os.environ.get('CODE_SEARCH_MINUTES', 60))
 # الحد الأقصى للاستعلامات لكل مستخدم
 RATE_LIMIT_PER_USER = int(os.environ.get('RATE_LIMIT_PER_USER', 10))
 
+# إعدادات طريقة المصادقة مع Gmail
+# يمكن استخدام App Password بدلاً من OAuth
+USE_APP_PASSWORD = os.environ.get('USE_APP_PASSWORD', 'false').lower() == 'true'
+APP_PASSWORD = os.environ.get('APP_PASSWORD', '')  # كلمة مرور التطبيق من Google
+
 # كلمات مفتاحية لتحديد رسائل إعادة تعيين كلمة المرور
 PASSWORD_RESET_KEYWORDS = [
     "password reset", 
