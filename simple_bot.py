@@ -12,6 +12,7 @@ import os
 from dotenv import load_dotenv
 import json
 from datetime import datetime
+import shutil
 
 # تهيئة التسجيل
 logging.basicConfig(
@@ -37,6 +38,11 @@ LOGIN_INSTRUCTIONS = (
 CODES_FILE = "openai_codes.json"
 # ملف تخزين معلومات الفيديو التعليمي
 TUTORIAL_VIDEO_INFO = "tutorial_video_info.json"
+
+# مجموعة لتخزين معرفات الاستجابات المعالجة
+processed_callbacks = set()
+# تخزين معرف آخر بريد إلكتروني تمت معالجته
+last_processed_email_id = None
 
 # التأكد من وجود ملف معلومات الفيديو
 def ensure_tutorial_video_file():
@@ -557,6 +563,192 @@ def main() -> None:
     # بدء البوت
     logger.info("بدء تشغيل البوت...")
     application.run_polling(allowed_updates=Update.ALL_TYPES)
+
+def apply_fixes(content):
+    """Apply all necessary fixes to the bot code"""
+    
+    # 1. Add global variables for tracking processed callbacks and emails
+    print("- Adding global tracking variables...")
+    if "processed_callbacks = set()" not in content:
+        logger_section = content.find("logger = logging.getLogger(__name__)")
+        if logger_section > 0:
+            insert_pos = content.find("\n", logger_section) + 1
+            globals_code = """
+# مجموعة لتخزين معرفات الاستجابات المعالجة
+processed_callbacks = set()
+# تخزين معرف آخر بريد إلكتروني تمت معالجته
+last_processed_email_id = None
+"""
+            content = content[:insert_pos] + globals_code + content[insert_pos:]
+    
+    # 2. Update button_callback to prevent duplicate processing
+    print("- Enhancing button_callback function...")
+    button_callback_start = content.find("async def button_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE):")
+    if button_callback_start > 0:
+        # Find start of function body
+        function_body_start = content.find(":", button_callback_start) + 1
+        function_body_start = content.find("\n", function_body_start) + 1
+        
+        # Get indentation level
+        indent = ""
+        for char in content[function_body_start:]:
+            if char.isspace():
+                indent += char
+            else:
+                break
+        
+        # Find old code to replace
+        old_code_pattern = r"query = update\.callback_query.*?await query\.answer\(\)"
+        match = re.search(old_code_pattern, content[button_callback_start:], re.DOTALL)
+        
+        if match:
+            old_code_start = button_callback_start + match.start()
+            old_code_end = button_callback_start + match.end()
+            
+            # New code with duplicate prevention
+            new_code = f"""
+{indent}global TUTORIAL_VIDEO_FILE_ID, processed_callbacks, last_processed_email_id
+{indent}query = update.callback_query
+{indent}user_id = str(update.effective_user.id)
+{indent}
+{indent}# تجنب معالجة نفس الاستجابة عدة مرات
+{indent}callback_id = f"{{query.message.message_id}}_{{query.data}}"
+{indent}if callback_id in processed_callbacks:
+{indent}    await query.answer("جاري المعالجة...")
+{indent}    return
+{indent}    
+{indent}# إضافة إلى الاستجابات المعالجة
+{indent}processed_callbacks.add(callback_id)
+{indent}
+{indent}await query.answer()"""
+            
+            content = content[:old_code_start] + new_code + content[old_code_end:]
+    
+    # 3. Add try/except blocks around message editing operations
+    print("- Adding error handling for message editing...")
+    # Find all edit_message_text calls without try/except
+    edit_pattern = re.compile(r'(\s+)(await query\.edit_message_text\([^)]+\))(\s*)(?!\s*except)', re.DOTALL)
+    
+    matches = list(edit_pattern.finditer(content))
+    offset = 0
+    
+    for i, match in enumerate(matches):
+        indent = match.group(1)
+        edit_call = match.group(2)
+        
+        # Calculate positions with offset adjustment
+        match_start = match.start() + offset
+        match_end = match.end() + offset
+        
+        # Create safer version with try/except
+        safe_version = f"""
+{indent}try:
+{indent}    {edit_call}
+{indent}except telegram.error.BadRequest as e:
+{indent}    logger.error(f"فشل في تعديل الرسالة: {{e}}")
+{indent}    try:
+{indent}        await context.bot.send_message(
+{indent}            chat_id=query.message.chat_id,
+{indent}            text="تعذر تحديث الرسالة. إليك رسالة جديدة.",
+{indent}            parse_mode='HTML'
+{indent}        )
+{indent}    except Exception as e2:
+{indent}        logger.error(f"فشل في إرسال رسالة جديدة: {{e2}}")"""
+        
+        content = content[:match_start] + safe_version + content[match_end:]
+        
+        # Update offset for next replacements
+        offset += len(safe_version) - (match_end - match_start)
+    
+    # 4. Update get_latest_verification_code to avoid duplicate emails
+    print("- Updating get_latest_verification_code function...")
+    func_start = content.find("def get_latest_verification_code(self, user_id: str)")
+    if func_start > 0:
+        # Find function body start
+        body_start = content.find(":", func_start) + 1
+        body_start = content.find("\n", body_start) + 1
+        
+        # Get indentation
+        indent = ""
+        for char in content[body_start:]:
+            if char.isspace():
+                indent += char
+            else:
+                break
+        
+        # Add global variable
+        global_var = f"{indent}global last_processed_email_id\n"
+        content = content[:body_start] + global_var + content[body_start:]
+        
+        # Find the loop that processes messages
+        loop_start = content.find("for msg in messages:", func_start)
+        if loop_start > 0:
+            # Find where message ID is extracted
+            msg_id_line = content.find("msg_id = msg", loop_start)
+            if msg_id_line > 0:
+                line_end = content.find("\n", msg_id_line) + 1
+                
+                # Add duplicate check
+                loop_indent = indent + "    "  # One level deeper
+                duplicate_check = f"""
+{loop_indent}# التحقق مما إذا كان هذا البريد الإلكتروني قد تمت معالجته بالفعل
+{loop_indent}if msg_id == last_processed_email_id:
+{loop_indent}    logger.info(f"تمت معالجة هذا البريد الإلكتروني بالفعل: {{msg_id}}")
+{loop_indent}    continue
+"""
+                content = content[:line_end] + duplicate_check + content[line_end:]
+            
+            # Find the return statement with the verification code
+            return_match = re.search(r'(\s+)return\s+\{\s*["\']code["\']\s*:', content[func_start:])
+            if return_match:
+                return_pos = func_start + return_match.start()
+                return_indent = return_match.group(1)
+                
+                # Add update to last_processed_email_id
+                update_code = f"""
+{return_indent}# حفظ معرف آخر بريد تمت معالجته
+{return_indent}last_processed_email_id = msg_id
+
+"""
+                content = content[:return_pos] + update_code + content[return_pos:]
+    
+    # 5. Add error handler to main function
+    print("- Adding global error handler...")
+    main_func = content.find("def main():")
+    if main_func > 0:
+        # Find application.run_polling line
+        run_polling = content.find("application.run_polling(", main_func)
+        if run_polling > 0:
+            # Get indentation
+            indent = "    "  # Default
+            lines_before = content[main_func:run_polling].splitlines()
+            for line in lines_before:
+                if "application." in line:
+                    indent = line[:line.find("application")]
+                    break
+            
+            # Add error handler
+            error_handler = f"""
+{indent}# Add error handler
+{indent}async def error_handler(update, context):
+{indent}    \"\"\"تسجيل الأخطاء التي تسببها التحديثات.\"\"\"
+{indent}    logger.error(f"حدث استثناء أثناء معالجة تحديث: {{context.error}}")
+{indent}    
+{indent}    # إخطار المستخدم بالخطأ إذا كان ذلك مناسبًا
+{indent}    if update and update.effective_chat:
+{indent}        try:
+{indent}            await context.bot.send_message(
+{indent}                chat_id=update.effective_chat.id,
+{indent}                text="حدث خطأ أثناء معالجة طلبك. الرجاء المحاولة مرة أخرى."
+{indent}            )
+{indent}        except Exception as e:
+{indent}            logger.error(f"فشل في إرسال رسالة الخطأ: {{e}}")
+{indent}            
+{indent}application.add_error_handler(error_handler)
+"""
+            content = content[:run_polling] + error_handler + content[run_polling:]
+    
+    return content
 
 if __name__ == "__main__":
     main() 

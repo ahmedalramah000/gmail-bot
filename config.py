@@ -18,6 +18,9 @@ TARGET_EMAIL = os.environ.get('TARGET_EMAIL', "ahmedalramah000@gmail.com")
 # قائمة مرسلي البريد الإلكتروني المسموح بهم
 EMAIL_SENDERS = os.environ.get('EMAIL_SENDERS', "no-reply@openai.com,login-code@openai.com,noreply@tm.openai.com").split(',')
 
+# فترة فحص البريد الإلكتروني (بالثواني)
+EMAIL_CHECK_INTERVAL = int(os.environ.get('EMAIL_CHECK_INTERVAL', 60))
+
 # المدة الزمنية للبحث عن الأكواد (بالدقائق)
 CODE_SEARCH_MINUTES = int(os.environ.get('CODE_SEARCH_MINUTES', 60))
 

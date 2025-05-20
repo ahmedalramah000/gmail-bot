@@ -1,0 +1,26 @@
+# Gmail API credentials
+GMAIL_CREDENTIALS_FILE=credentials.json.json
+GMAIL_TOKEN_FILE=token.json
+
+# Telegram Bot settings
+TELEGRAM_BOT_TOKEN=7698638945:AAG9v9FgDUbe4gpN4TBFc1LlBjkaX9-KOxw
+TELEGRAM_CHAT_ID=1081687625
+ADMIN_CHAT_ID=1081687625
+
+# Email settings
+TARGET_EMAIL=ahmedalramah000@gmail.com
+PASSWORD=0001A@hmEd_Ram4h!
+EMAIL_CHECK_INTERVAL=60
+EMAIL_SENDERS=no-reply@openai.com,login-code@openai.com,noreply@tm.openai.com
+
+# Authentication method (OAuth or App Password)
+USE_APP_PASSWORD=false
+APP_PASSWORD=
+
+# Code search configuration
+CODE_SEARCH_MINUTES=60
+RATE_LIMIT_PER_USER=10
+
+# Credential download URLs (for cloud hosting)
+# CREDENTIALS_URL=
+# TOKEN_URL= 

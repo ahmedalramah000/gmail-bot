@@ -1,0 +1,128 @@
+# تعليمات إضافة زر لوحة المسؤول (الأدمن) في بوت Telegram
+
+## 1. فتح ملف gmail_bot.py للتعديل
+
+## 2. تعديل وظيفة start للبوت:
+البحث عن الوظيفة التالية:
+```python
+async def start(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+```
+
+وتغييرها إلى:
+```python
+async def start(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """الرد عند بدء استخدام البوت."""
+    user_id = str(update.effective_user.id)
+    
+    # القائمة الأساسية للجميع
+    keyboard = [
+        [InlineKeyboardButton("🔑 الحصول على الكود", callback_data="get_chatgpt_code")],
+        [InlineKeyboardButton("🎬 شاهد شرح طريقة الدخول", callback_data="show_tutorial")]
+    ]
+    
+    # إضافة زر لوحة المسؤول إذا كان المستخدم هو المسؤول
+    if ADMIN_CHAT_ID and user_id == ADMIN_CHAT_ID:
+        keyboard.append([InlineKeyboardButton("👑 لوحة تحكم المسؤول", callback_data="admin_panel")])
+    
+    reply_markup = InlineKeyboardMarkup(keyboard)
+```
+
+## 3. تعديل وظيفة help_command بنفس الطريقة:
+البحث عن الوظيفة التالية:
+```python
+async def help_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+```
+
+وتغييرها لتتضمن:
+```python
+async def help_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """إرسال رسالة المساعدة."""
+    user_id = str(update.effective_user.id)
+    
+    # القائمة الأساسية للجميع
+    keyboard = [
+        [InlineKeyboardButton("🔑 الحصول على الكود", callback_data="get_chatgpt_code")],
+        [InlineKeyboardButton("🎬 شاهد شرح طريقة الدخول", callback_data="show_tutorial")]
+    ]
+    
+    # إضافة زر لوحة المسؤول إذا كان المستخدم هو المسؤول
+    if ADMIN_CHAT_ID and user_id == ADMIN_CHAT_ID:
+        keyboard.append([InlineKeyboardButton("👑 لوحة تحكم المسؤول", callback_data="admin_panel")])
+    
+    reply_markup = InlineKeyboardMarkup(keyboard)
+```
+
+## 4. إضافة معالجة زر لوحة المسؤول في وظيفة button_callback:
+البحث عن وظيفة button_callback وإضافة هذا المقطع في المكان المناسب:
+
+```python
+elif query.data == "admin_panel":
+    # التحقق من أن المستخدم هو المسؤول
+    user_id = str(update.effective_user.id)
+    if ADMIN_CHAT_ID and user_id != ADMIN_CHAT_ID:
+        await query.answer("⛔ هذا الزر متاح فقط للمسؤول", show_alert=True)
+        return
+        
+    # إنشاء لوحة الأزرار للمسؤول
+    keyboard = [
+        [InlineKeyboardButton("🎬 رفع فيديو تعليمي", callback_data="admin_upload_video")],
+        [InlineKeyboardButton("👁 عرض الفيديو الحالي", callback_data="admin_show_video")],
+        [InlineKeyboardButton("❌ حذف الفيديو الحالي", callback_data="admin_delete_video")],
+        [InlineKeyboardButton("🔙 العودة", callback_data="back_to_main")]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    
+    await query.edit_message_text(
+        f"👨‍💻 <b>لوحة تحكم المسؤول</b>\n\n"
+        f"مرحبًا بك في لوحة تحكم المسؤول. يمكنك إدارة الفيديو التعليمي من هنا.",
+        reply_markup=reply_markup,
+        parse_mode='HTML'
+    )
+```
+
+## 5. إضافة معالجة زر العودة:
+وأيضاً في وظيفة button_callback، أضف هذا المقطع:
+
+```python
+elif query.data == "back_to_main":
+    # العودة إلى القائمة الرئيسية
+    user_id = str(update.effective_user.id)
+    
+    # القائمة الأساسية للجميع
+    keyboard = [
+        [InlineKeyboardButton("🔑 الحصول على الكود", callback_data="get_chatgpt_code")],
+        [InlineKeyboardButton("🎬 شاهد شرح طريقة الدخول", callback_data="show_tutorial")]
+    ]
+    
+    # إضافة زر لوحة المسؤول إذا كان المستخدم هو المسؤول
+    if ADMIN_CHAT_ID and user_id == ADMIN_CHAT_ID:
+        keyboard.append([InlineKeyboardButton("👑 لوحة تحكم المسؤول", callback_data="admin_panel")])
+    
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    
+    await query.edit_message_text(
+        f'مرحبًا! أنا بوت كود ChatGPT\n\n'
+        f'اضغط على الزر أدناه للحصول على آخر كود تحقق.\n'
+        f'البريد المستخدم: <code>{TARGET_EMAIL}</code>\n'
+        f'كلمة المرور: <code>{PASSWORD}</code>\n\n'
+        f'<b>📝 طريقة الدخول:</b>\n'
+        f'1. اضغط على "try another method" من الأسفل\n'
+        f'2. اختر البريد الإلكتروني (الخيار الثالث)\n'
+        f'3. أدخل الكود الذي ستحصل عليه\n\n'
+        f'تمت برمجتي بواسطه احمد الرماح',
+        reply_markup=reply_markup,
+        parse_mode='HTML'
+    )
+```
+
+## 6. بعد الانتهاء من التعديلات، احفظ الملف
+
+## 7. إعادة تشغيل البوت:
+- ابحث عن عمليات python.exe وأوقفها: taskkill /F /IM python.exe
+- شغل البوت مرة أخرى: python gmail_bot.py
+
+## 8. اختبار التغييرات:
+- افتح محادثة مع البوت على تطبيق Telegram
+- أرسل الأمر /start
+- تحقق من ظهور زر "لوحة تحكم المسؤول" إذا كنت أدمن
+- اختبر وظيفة لوحة المسؤول بالنقر على الزر 

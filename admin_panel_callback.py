@@ -1,0 +1,142 @@
+# هذا الكود يجب إضافته في وظيفة button_callback في ملف gmail_bot.py
+# بعد elif query.data == "show_tutorial":
+# البحث عن السطر التالي:
+# elif query.data == "show_tutorial":
+#      ... الكود الحالي ...
+# وإضافة هذا الكود بعده:
+
+elif query.data == "admin_panel":
+    # التحقق من أن المستخدم هو المسؤول
+    user_id = str(query.from_user.id)
+    if ADMIN_CHAT_ID and user_id != ADMIN_CHAT_ID:
+        await query.answer("⛔ هذا الزر متاح فقط للمسؤول", show_alert=True)
+        return
+        
+    # إنشاء لوحة الأزرار للمسؤول
+    keyboard = [
+        [InlineKeyboardButton("🎬 رفع فيديو تعليمي", callback_data="admin_upload_video")],
+        [InlineKeyboardButton("👁 عرض الفيديو الحالي", callback_data="admin_show_video")],
+        [InlineKeyboardButton("❌ حذف الفيديو الحالي", callback_data="admin_delete_video")],
+        [InlineKeyboardButton("🔙 العودة", callback_data="back_to_main")]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    
+    await query.edit_message_text(
+        f"👨‍💻 <b>لوحة تحكم المسؤول</b>\n\n"
+        f"مرحبًا بك في لوحة تحكم المسؤول. يمكنك إدارة الفيديو التعليمي من هنا.",
+        reply_markup=reply_markup,
+        parse_mode='HTML'
+    )
+
+elif query.data == "back_to_main":
+    # العودة إلى القائمة الرئيسية
+    user_id = str(query.from_user.id)
+    
+    # القائمة الأساسية للجميع
+    keyboard = [
+        [InlineKeyboardButton("🔑 الحصول على الكود", callback_data="get_chatgpt_code")],
+        [InlineKeyboardButton("🎬 شاهد شرح طريقة الدخول", callback_data="show_tutorial")]
+    ]
+    
+    # إضافة زر لوحة المسؤول إذا كان المستخدم هو المسؤول
+    if ADMIN_CHAT_ID and user_id == ADMIN_CHAT_ID:
+        keyboard.append([InlineKeyboardButton("👑 لوحة تحكم المسؤول", callback_data="admin_panel")])
+    
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    
+    await query.edit_message_text(
+        f'مرحبًا! أنا بوت كود ChatGPT\n\n'
+        f'اضغط على الزر أدناه للحصول على آخر كود تحقق.\n'
+        f'البريد المستخدم: <code>{TARGET_EMAIL}</code>\n'
+        f'كلمة المرور: <code>{PASSWORD}</code>\n\n'
+        f'<b>📝 طريقة الدخول:</b>\n'
+        f'1. اضغط على "try another method" من الأسفل\n'
+        f'2. اختر البريد الإلكتروني (الخيار الثالث)\n'
+        f'3. أدخل الكود الذي ستحصل عليه\n\n'
+        f'تمت برمجتي بواسطه احمد الرماح',
+        reply_markup=reply_markup,
+        parse_mode='HTML'
+    )
+
+elif query.data == "admin_upload_video":
+    # التحقق من أن المستخدم هو المسؤول
+    user_id = str(query.from_user.id)
+    if ADMIN_CHAT_ID and user_id != ADMIN_CHAT_ID:
+        await query.answer("⛔ هذا الزر متاح فقط للمسؤول", show_alert=True)
+        return
+    
+    await query.edit_message_text(
+        f"🎬 <b>رفع فيديو تعليمي</b>\n\n"
+        f"لرفع فيديو تعليمي جديد، قم بإرسال الفيديو ثم الرد عليه بالأمر:\n"
+        f"<code>/upload_tutorial</code>\n\n"
+        f"<i>ملاحظة: سيتم استبدال الفيديو الحالي إن وجد.</i>",
+        reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 العودة", callback_data="admin_panel")]]),
+        parse_mode='HTML'
+    )
+
+elif query.data == "admin_show_video":
+    # التحقق من أن المستخدم هو المسؤول
+    user_id = str(query.from_user.id)
+    if ADMIN_CHAT_ID and user_id != ADMIN_CHAT_ID:
+        await query.answer("⛔ هذا الزر متاح فقط للمسؤول", show_alert=True)
+        return
+    
+    # فحص إذا كان هناك فيديو مخزن
+    if TUTORIAL_VIDEO_FILE_ID:
+        await query.answer("جاري تحميل الفيديو...")
+        await context.bot.send_video(
+            chat_id=query.message.chat_id,
+            video=TUTORIAL_VIDEO_FILE_ID,
+            caption="🎬 <b>الفيديو التعليمي الحالي</b>\n\nهذا هو الفيديو التعليمي الذي يشاهده المستخدمون حاليًا.",
+            parse_mode='HTML'
+        )
+    else:
+        await query.edit_message_text(
+            f"⚠️ <b>لا يوجد فيديو تعليمي</b>\n\n"
+            f"لم يتم رفع أي فيديو تعليمي حتى الآن. يمكنك رفع فيديو جديد باستخدام زر 'رفع فيديو تعليمي'.",
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 العودة", callback_data="admin_panel")]]),
+            parse_mode='HTML'
+        )
+
+elif query.data == "admin_delete_video":
+    # التحقق من أن المستخدم هو المسؤول
+    user_id = str(query.from_user.id)
+    if ADMIN_CHAT_ID and user_id != ADMIN_CHAT_ID:
+        await query.answer("⛔ هذا الزر متاح فقط للمسؤول", show_alert=True)
+        return
+    
+    global TUTORIAL_VIDEO_FILE_ID
+    
+    # فحص إذا كان هناك فيديو مخزن
+    if TUTORIAL_VIDEO_FILE_ID:
+        TUTORIAL_VIDEO_FILE_ID = None
+        
+        # محاولة حذف الملف المخزن
+        try:
+            with open('tutorial_video.txt', 'w') as f:
+                f.write("")
+            delete_success = True
+        except:
+            delete_success = False
+        
+        if delete_success:
+            await query.edit_message_text(
+                f"✅ <b>تم حذف الفيديو التعليمي</b>\n\n"
+                f"تم حذف الفيديو التعليمي بنجاح. الآن عند النقر على زر شاهد الشرح، سيظهر للمستخدمين رسالة تفيد بعدم وجود فيديو.",
+                reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 العودة", callback_data="admin_panel")]]),
+                parse_mode='HTML'
+            )
+        else:
+            await query.edit_message_text(
+                f"⚠️ <b>تم إزالة الفيديو مؤقتًا</b>\n\n"
+                f"تم إزالة الفيديو من الذاكرة مؤقتًا، لكن قد لا يتم حفظ هذا التغيير بعد إعادة تشغيل البوت.",
+                reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 العودة", callback_data="admin_panel")]]),
+                parse_mode='HTML'
+            )
+    else:
+        await query.edit_message_text(
+            f"ℹ️ <b>لا يوجد فيديو لحذفه</b>\n\n"
+            f"لم يتم العثور على أي فيديو تعليمي مخزن.",
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 العودة", callback_data="admin_panel")]]),
+            parse_mode='HTML'
+        ) 

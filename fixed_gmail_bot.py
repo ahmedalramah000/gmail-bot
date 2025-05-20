@@ -1072,94 +1072,12 @@ class GmailCodeBot:
         if query.data == "get_chatgpt_code":
             # عرض رسالة انتظار
             try:
-                await query.edit_message_text("🔍 جاري البحث عن آخر كود... انتظر قليلاً")
-            except telegram.error.BadRequest as e:
-                if "There is no text in the message to edit" in str(e) or "Message to edit not found" in str(e) or "Message can't be edited" in str(e):
-                    # تم حذف الرسالة أو غير قابلة للتعديل
-                    try:
-                        await context.bot.send_message(
-                            chat_id=query.message.chat_id,
-                            text="🔍 جاري البحث عن آخر كود... انتظر قليلاً"
-                        )
-                    except Exception as e2:
-                        logger.error(f"فشل في إرسال رسالة جديدة: {e2}")
-                        return
-                else:
-                    logger.error(f"خطأ في API تيليجرام: {e}")
-                    return
-            code_info = self.get_latest_verification_code(user_id)
-            keyboard = [
-                [InlineKeyboardButton("🔄 تحديث", callback_data="get_chatgpt_code")],
-                [InlineKeyboardButton("🎬 شاهد شرح طريقة الدخول", callback_data="show_tutorial")]
-            ]
-            reply_markup = InlineKeyboardMarkup(keyboard)
-            if "error" in code_info and code_info["error"] == "rate_limit":
-                keyboard_rate_limit = [
-                    [InlineKeyboardButton("🎬 شاهد شرح طريقة الدخول", callback_data="show_tutorial")]
-                ]
-                reply_markup_rate_limit = InlineKeyboardMarkup(keyboard_rate_limit)
-                try:
-                    await query.edit_message_text(
-                        "⚠️ لقد تجاوزت الحد الأقصى من الطلبات. يرجى المحاولة لاحقًا.\n\n"
-                        f"📧 البريد: <code>{TARGET_EMAIL}</code>\n"
-                        f"🔒 كلمة المرور: <code>{PASSWORD}</code>\n\n"
-                        f"<b>📝 طريقة الدخول:</b>\n"
-                        f'1. اضغط على "try another method" من الأسفل\n'
-                        f'2. اختر البريد الإلكتروني (الخيار الثالث)\n'
-                        f'3. أدخل الكود الذي ستحصل عليه\n\n'
-                        f"تمت برمجتي بواسطه احمد الرماح",
-                        reply_markup=reply_markup_rate_limit,
-                        parse_mode='HTML'
-                    )
-                except telegram.error.BadRequest as e:
-                    logger.error(f"فشل في تحديث رسالة حد الاستخدام: {e}")
-                    try:
-                        await context.bot.send_message(
-                            chat_id=query.message.chat_id,
-                            text="⚠️ لقد تجاوزت الحد الأقصى من الطلبات. يرجى المحاولة لاحقًا.\n\n"
-                                 f"📧 البريد: <code>{TARGET_EMAIL}</code>\n"
-                                 f"🔒 كلمة المرور: <code>{PASSWORD}</code>\n\n"
-                                 f"<b>📝 طريقة الدخول:</b>\n"
-                                 f'1. اضغط على "try another method" من الأسفل\n'
-                                 f'2. اختر البريد الإلكتروني (الخيار الثالث)\n'
-                                 f'3. أدخل الكود الذي ستحصل عليه\n\n'
-                                 f"تمت برمجتي بواسطه احمد الرماح",
-                            reply_markup=reply_markup_rate_limit,
-                            parse_mode='HTML'
-                        )
-                    except Exception as e2:
-                        logger.error(f"فشل في إرسال رسالة حد الاستخدام جديدة: {e2}")
-            else:
-                message = (
-                    f"🔑 <b>كود التحقق الخاص بك:</b>\n\n"
-                    f"<code>{code_info['code']}</code>\n\n"
-                    f"📧 <b>بيانات تسجيل الدخول:</b>\n"
-                    f"البريد: <code>{TARGET_EMAIL}</code>\n"
-                    f"الباسورد: <code>{PASSWORD}</code>\n\n"
-                    f"<b>📝 طريقة الدخول:</b>\n"
-                    f'1. اضغط على "try another method" من الأسفل\n'
-                    f'2. اختر البريد الإلكتروني (الخيار الثالث)\n'
-                    f'3. أدخل الكود المعروض أعلاه\n\n'
-                    f"تمت برمجتي بواسطه احمد الرماح"
-                )
-                try:
-                    await query.edit_message_text(
-                        text=message,
-                        reply_markup=reply_markup,
-                        parse_mode='HTML'
-                    )
-                except telegram.error.BadRequest as e:
-                    logger.error(f"فشل في تعديل رسالة الكود: {e}")
-                    try:
-                        await context.bot.send_message(
-                            chat_id=query.message.chat_id,
-                            text=message,
-                            reply_markup=reply_markup,
-                            parse_mode='HTML'
-                        )
-                    except Exception as e2:
-                        logger.error(f"فشل في إرسال رسالة الكود جديدة: {e2}")
+            await query.edit_message_text("🔍 جاري البحث عن آخر كود... انتظر قليلاً")
+        except telegram.error.BadRequest as e:                if "There is no text in the message to edit" in str(e) or "Message to edit not found" in str(e) or "Message can't be edited" in str(e):                    # تم حذف الرسالة أو غير قابلة للتعديل                    try:                        await context.bot.send_message(                            chat_id=query.message.chat_id,                            text="🔍 جاري البحث عن آخر كود... انتظر قليلاً"                        )                    except Exception as e2:                        logger.error(f"فشل في إرسال رسالة جديدة: {e2}")                        return                else:                    logger.error(f"خطأ في API تيليجرام: {e}")                    return                        # البحث عن الكود (مع تجاهل التحقق من وجود ملف بيانات الاعتماد)            code_info = self.get_latest_verification_code(user_id)                        keyboard = [                [InlineKeyboardButton("🔄 تحديث", callback_data="get_chatgpt_code")],                [InlineKeyboardButton("🎬 شاهد شرح طريقة الدخول", callback_data="show_tutorial")]            ]            reply_markup = InlineKeyboardMarkup(keyboard)                        # تعديل الشرط لتجاهل رسالة خطأ ملف بيانات الاعتماد            if code_info:                if "error" in code_info and code_info["error"] == "rate_limit":                    keyboard_rate_limit = [                        [InlineKeyboardButton("🎬 شاهد شرح طريقة الدخول", callback_data="show_tutorial")]                    ]                    reply_markup_rate_limit = InlineKeyboardMarkup(keyboard_rate_limit)                                        try:                        await query.edit_message_text(                            "⚠️ لقد تجاوزت الحد الأقصى من الطلبات. يرجى المحاولة لاحقًا.\n\n"                            f"📧 البريد: <code>{TARGET_EMAIL}</code>\n"                            f"🔒 كلمة المرور: <code>{PASSWORD}</code>\n\n"                            f"<b>📝 طريقة الدخول:</b>\n"                            f'1. اضغط على "try another method" من الأسفل\n'                            f'2. اختر البريد الإلكتروني (الخيار الثالث)\n'                            f'3. أدخل الكود الذي ستحصل عليه\n\n'                            f"تمت برمجتي بواسطه احمد الرماح",                            reply_markup=reply_markup_rate_limit,                            parse_mode='HTML'                        )                    except telegram.error.BadRequest as e:                        logger.error(f"فشل في تحديث رسالة حد الاستخدام: {e}")                        try:                            await context.bot.send_message(                                chat_id=query.message.chat_id,                                text="⚠️ لقد تجاوزت الحد الأقصى من الطلبات. يرجى المحاولة لاحقًا.\n\n"                                f"📧 البريد: <code>{TARGET_EMAIL}</code>\n"                                f"🔒 كلمة المرور: <code>{PASSWORD}</code>\n\n"                                f"<b>📝 طريقة الدخول:</b>\n"                                f'1. اضغط على "try another method" من الأسفل\n'                                f'2. اختر البريد الإلكتروني (الخيار الثالث)\n'                                f'3. أدخل الكود الذي ستحصل عليه\n\n'                                f"تمت برمجتي بواسطه احمد الرماح",                                reply_markup=reply_markup_rate_limit,                                parse_mode='HTML'                            )                        except Exception as e2:                            logger.error(f"فشل في إرسال رسالة حد الاستخدام جديدة: {e2}")                    return                                # عرض الكود فقط بطريقة بسيطة مع بيانات تسجيل الدخول                message = (                    f"🔑 <b>كود التحقق الخاص بك:</b>\n\n"                    f"<code>{code_info['code']}</code>\n\n"                    f"📧 <b>بيانات تسجيل الدخول:</b>\n"                    f"البريد: <code>{TARGET_EMAIL}</code>\n"                    f"الباسورد: <code>{PASSWORD}</code>\n\n"                    f"<b>📝 طريقة الدخول:</b>\n"                    f'1. اضغط على "try another method" من الأسفل\n'                    f'2. اختر البريد الإلكتروني (الخيار الثالث)\n'                    f'3. أدخل الكود المعروض أعلاه\n\n'                    f"تمت برمجتي بواسطه احمد الرماح"                )                                try:                    await query.edit_message_text(                        text=message,                        reply_markup=reply_markup,                        parse_mode='HTML'                    )                except telegram.error.BadRequest as e:                    logger.error(f"فشل في تعديل رسالة الكود: {e}")                    try:                        await context.bot.send_message(                            chat_id=query.message.chat_id,                            text=message,                            reply_markup=reply_markup,                            parse_mode='HTML'                        )                    except Exception as e2:                        logger.error(f"فشل في إرسال رسالة الكود جديدة: {e2}")            else:                # رسالة محسنة عند عدم وجود كود                keyboard_no_code = [                    [InlineKeyboardButton("🔄 تحديث", callback_data="get_chatgpt_code")],                    [InlineKeyboardButton("🎬 شاهد شرح طريقة الدخول", callback_data="show_tutorial")]                ]                reply_markup_no_code = InlineKeyboardMarkup(keyboard_no_code)                                try:                    await query.edit_message_text(                        f"❌ لم يتم العثور على كود تحقق\nحاول مره اخري\n\n"                        f"📧 <b>بيانات تسجيل الدخول:</b>\n"                        f"البريد: <code>{TARGET_EMAIL}</code>\n"                        f"الباسورد: <code>{PASSWORD}</code>\n\n"                        f"<b>📝 طريقة الدخول:</b>\n"                        f'1. اضغط على "try another method" من الأسفل\n'                        f'2. اختر البريد الإلكتروني (الخيار الثالث)\n'                        f'3. أدخل الكود الذي ستحصل عليه\n\n'                        f"تمت برمجتي بواسطه احمد الرماح",                        reply_markup=reply_markup_no_code,                        parse_mode='HTML'                    )                except telegram.error.BadRequest as e:                    logger.error(f"فشل في تعديل رسالة عدم وجود كود: {e}")                    try:                        await context.bot.send_message(                            chat_id=query.message.chat_id,                            text=f"❌ لم يتم العثور على كود تحقق\nحاول مره اخري\n\n"                            f"📧 <b>بيانات تسجيل الدخول:</b>\n"                            f"البريد: <code>{TARGET_EMAIL}</code>\n"                            f"الباسورد: <code>{PASSWORD}</code>\n\n"                            f"<b>📝 طريقة الدخول:</b>\n"                            f'1. اضغط على "try another method" من الأسفل\n'                            f'2. اختر البريد الإلكتروني (الخيار الثالث)\n'                            f'3. أدخل الكود الذي ستحصل عليه\n\n'                            f"تمت برمجتي بواسطه احمد الرماح",                            reply_markup=reply_markup_no_code,                            parse_mode='HTML'                        )                    except Exception as e2:                        logger.error(f"فشل في إرسال رسالة عدم وجود كود جديدة: {e2}")
+        
         elif query.data == "account_info":
+            # إزالة التحقق من المسؤول للسماح لأي مستخدم بالوصول
+            
             keyboard = [
                 [InlineKeyboardButton("🔐 عرض بيانات التسجيل كاملة", callback_data="show_password")],
                 [InlineKeyboardButton("🔄 العودة", callback_data="get_chatgpt_code")]
@@ -1185,6 +1103,8 @@ class GmailCodeBot:
             )
             
         elif query.data == "show_password":
+            # إزالة التحقق من المسؤول للسماح لأي مستخدم بعرض كلمة المرور
+            
             keyboard = [
                 [InlineKeyboardButton("🔄 إخفاء كلمة المرور", callback_data="account_info")],
                 [InlineKeyboardButton("🔑 الحصول على الكود", callback_data="get_chatgpt_code")]
@@ -1210,11 +1130,13 @@ class GmailCodeBot:
             )
         
         elif query.data == "admin_panel":
+            # التحقق من أن المستخدم هو المسؤول
             user_id = str(update.effective_user.id)
             if ADMIN_CHAT_ID and user_id != ADMIN_CHAT_ID:
                 await query.answer("⛔ هذا الزر متاح فقط للمسؤول", show_alert=True)
                 return
                 
+            # إنشاء لوحة الأزرار للمسؤول
             keyboard = [
                 [InlineKeyboardButton("🎬 رفع فيديو تعليمي", callback_data="admin_upload_video")],
                 [InlineKeyboardButton("👁 عرض الفيديو الحالي", callback_data="admin_show_video")],
@@ -1231,13 +1153,16 @@ class GmailCodeBot:
             )
             
         elif query.data == "back_to_main":
+            # العودة إلى القائمة الرئيسية
             user_id = str(update.effective_user.id)
             
+            # القائمة الأساسية للجميع
             keyboard = [
                 [InlineKeyboardButton("🔑 الحصول على الكود", callback_data="get_chatgpt_code")],
                 [InlineKeyboardButton("🎬 شاهد شرح طريقة الدخول", callback_data="show_tutorial")]
             ]
             
+            # إضافة زر لوحة المسؤول إذا كان المستخدم هو المسؤول
             if ADMIN_CHAT_ID and user_id == ADMIN_CHAT_ID:
                 keyboard.append([InlineKeyboardButton("👑 لوحة تحكم المسؤول", callback_data="admin_panel")])
             
@@ -1258,12 +1183,15 @@ class GmailCodeBot:
             )
         
         elif query.data == "show_tutorial":
+            # إرسال الفيديو التعليمي
             keyboard = [
                 [InlineKeyboardButton("🔑 الحصول على الكود", callback_data="get_chatgpt_code")]
             ]
             reply_markup = InlineKeyboardMarkup(keyboard)
             
+            # التحقق من وجود فيديو تم رفعه
             if TUTORIAL_VIDEO_FILE_ID:
+                # إرسال الفيديو المخزن
                 await context.bot.send_video(
                     chat_id=update.effective_chat.id,
                     video=TUTORIAL_VIDEO_FILE_ID,
@@ -1280,8 +1208,10 @@ class GmailCodeBot:
                     parse_mode='HTML',
                     reply_markup=reply_markup
                 )
+                # حذف الرسالة السابقة
                 await query.delete_message()
             else:
+                # إذا لم يكن هناك فيديو تم رفعه، إرسال رسالة نصية
                 text_message = (
                     f"<b>🎬 شرح طريقة تسجيل الدخول إلى ChatGPT:</b>\n\n"
                     f"<b>خطوات تسجيل الدخول:</b>\n"
@@ -1299,7 +1229,9 @@ class GmailCodeBot:
                     parse_mode='HTML'
                 )
             
+        # معالجة أزرار لوحة تحكم المسؤول
         elif query.data == "admin_upload_video":
+            # التحقق من أن المستخدم هو المسؤول
             user_id = str(update.effective_user.id)
             if ADMIN_CHAT_ID and user_id != ADMIN_CHAT_ID:
                 await query.answer("⛔ هذا الزر متاح فقط للمسؤول", show_alert=True)
@@ -1313,6 +1245,7 @@ class GmailCodeBot:
                 "سيقوم البوت بتخزين الفيديو وإعلامك عند الانتهاء."
             )
             
+            # لوحة أزرار العودة
             keyboard = [
                 [InlineKeyboardButton("🔙 العودة إلى لوحة التحكم", callback_data="return_to_admin_panel")]
             ]
@@ -1325,16 +1258,19 @@ class GmailCodeBot:
             )
             
         elif query.data == "admin_show_video":
+            # التحقق من أن المستخدم هو المسؤول
             user_id = str(update.effective_user.id)
             if ADMIN_CHAT_ID and user_id != ADMIN_CHAT_ID:
                 await query.answer("⛔ هذا الزر متاح فقط للمسؤول", show_alert=True)
                 return
                 
+            # لوحة أزرار العودة
             keyboard = [
                 [InlineKeyboardButton("🔙 العودة إلى لوحة التحكم", callback_data="return_to_admin_panel")]
             ]
             reply_markup = InlineKeyboardMarkup(keyboard)
             
+            # التحقق من وجود فيديو مخزن
             if not TUTORIAL_VIDEO_FILE_ID:
                 await query.edit_message_text(
                     text="ℹ️ <b>لا يوجد فيديو تعليمي مخزن حاليًا</b>\n\nيرجى رفع فيديو أولاً.",
@@ -1343,11 +1279,13 @@ class GmailCodeBot:
                 )
                 return
                 
+            # إرسال رسالة مؤقتة
             await query.edit_message_text(
                 text="جاري إرسال الفيديو... انتظر لحظة",
                 parse_mode='HTML'
             )
             
+            # إرسال الفيديو
             await context.bot.send_video(
                 chat_id=update.effective_chat.id,
                 video=TUTORIAL_VIDEO_FILE_ID,
@@ -1359,20 +1297,24 @@ class GmailCodeBot:
                 reply_markup=reply_markup
             )
             
+            # حذف الرسالة المؤقتة
             await query.delete_message()
             
         elif query.data == "admin_delete_video":
+            # التحقق من أن المستخدم هو المسؤول
             user_id = str(update.effective_user.id)
             if ADMIN_CHAT_ID and user_id != ADMIN_CHAT_ID:
                 await query.answer("⛔ هذا الزر متاح فقط للمسؤول", show_alert=True)
                 return
                 
+            # لوحة أزرار التأكيد
             keyboard = [
                 [InlineKeyboardButton("✅ نعم، احذف الفيديو", callback_data="confirm_delete_video")],
                 [InlineKeyboardButton("❌ لا، إلغاء الحذف", callback_data="return_to_admin_panel")]
             ]
             reply_markup = InlineKeyboardMarkup(keyboard)
             
+            # التحقق من وجود فيديو مخزن
             if not TUTORIAL_VIDEO_FILE_ID:
                 await query.edit_message_text(
                     text="ℹ️ <b>لا يوجد فيديو تعليمي مخزن حاليًا</b>\n\nلا يوجد شيء لحذفه.",
@@ -1388,14 +1330,17 @@ class GmailCodeBot:
             )
             
         elif query.data == "confirm_delete_video":
+            # التحقق من أن المستخدم هو المسؤول
             user_id = str(update.effective_user.id)
             if ADMIN_CHAT_ID and user_id != ADMIN_CHAT_ID:
                 await query.answer("⛔ هذا الزر متاح فقط للمسؤول", show_alert=True)
                 return
                 
+            # حذف الفيديو وحفظ التغييرات
             save_video_id(None)
             success = True
             
+            # لوحة أزرار العودة
             keyboard = [
                 [InlineKeyboardButton("🔙 العودة إلى لوحة التحكم", callback_data="return_to_admin_panel")]
             ]
@@ -1415,11 +1360,13 @@ class GmailCodeBot:
                 )
         
         elif query.data == "return_to_admin_panel":
+            # التحقق من أن المستخدم هو المسؤول
             user_id = str(update.effective_user.id)
             if ADMIN_CHAT_ID and user_id != ADMIN_CHAT_ID:
                 await query.answer("⛔ هذا الزر متاح فقط للمسؤول", show_alert=True)
                 return
                 
+            # إنشاء لوحة الأزرار للمسؤول
             keyboard = [
                 [InlineKeyboardButton("🎬 رفع فيديو تعليمي", callback_data="admin_upload_video")],
                 [InlineKeyboardButton("👁 عرض الفيديو الحالي", callback_data="admin_show_video")],
@@ -1437,30 +1384,39 @@ class GmailCodeBot:
 
 def main():
     """تشغيل البوت."""
+    # تحميل معرف الفيديو التعليمي إذا كان موجودًا
     load_video_id()
     
+    # استخراج توكن البوت من المتغيرات البيئية مرة أخرى للتأكد
     telegram_token = os.environ.get("TELEGRAM_BOT_TOKEN")
     
+    # التحقق من وجود توكن البوت
     if not telegram_token:
         logger.error("لم يتم تعيين TELEGRAM_BOT_TOKEN. قم بإضافته إلى ملف .env أو متغيرات البيئة")
         return
     
+    # طباعة جزء من التوكن للتأكد من صحته (أول 4 أحرف فقط للأمان)
     token_preview = telegram_token[:4] if telegram_token else "غير موجود"
     logger.info(f"تم العثور على توكن بوت تلجرام (يبدأ بـ: {token_preview}...)")
     
+    # تشغيل وظيفة الحفاظ على البوت نشطًا على Replit
     keep_alive()
 
     retry_count = 0
-    while retry_count < MAX_RETRIES or MAX_RETRIES == 0:
+    while retry_count < MAX_RETRIES or MAX_RETRIES == 0:  # إذا كان MAX_RETRIES = 0 سنحاول بشكل غير محدود
         try:
+            # إنشاء البوت
             bot = GmailCodeBot()
             
+            # تأكد من استخدام المتغير telegram_token المُعرف محليًا وليس المتغير العام
             application = Application.builder().token(telegram_token).build()
 
+            # إعداد أوامر البوت - إظهار أمر start فقط
             commands = [
                 ("start", "بدء استخدام البوت وعرض بيانات تسجيل الدخول")
             ]
             
+            # إضافة المعالجات
             application.add_handler(CommandHandler("start", bot.start))
             application.add_handler(CommandHandler("help", bot.help_command))
             application.add_handler(CommandHandler("credentials", bot.credentials_command))
@@ -1471,30 +1427,37 @@ def main():
             application.add_handler(CommandHandler("admin_panel", bot.admin_panel_command))
             application.add_handler(CallbackQueryHandler(bot.button_callback))
 
+            # ضبط الأوامر الظاهرة في واجهة البوت
             async def set_commands(app):
                 await app.bot.set_my_commands(commands)
                 logger.info("تم ضبط أوامر البوت بنجاح")
             
+            # إضافة مهمة لضبط أوامر البوت عند البدء
             application.post_init = set_commands
             
+            # بدء البوت
             logger.info("بدء تشغيل البوت...")
             
+            # تشغيل البوت مع التعامل مع الأخطاء
             application.run_polling(allowed_updates=Update.ALL_TYPES, drop_pending_updates=True, close_loop=False)
             
+            # إذا وصلنا إلى هنا، فهذا يعني أن البوت توقف بشكل طبيعي
             logger.info("تم إيقاف البوت بشكل طبيعي.")
             break
             
         except (ConnectionError, socket.error, TimeoutError) as e:
             retry_count += 1
-            retry_delay = BASE_RETRY_DELAY * (2 ** (retry_count - 1))
+            retry_delay = BASE_RETRY_DELAY * (2 ** (retry_count - 1))  # تأخير متزايد أسياً
             
             logger.error(f"حدث خطأ في الاتصال: {e}")
             logger.info(f"محاولة إعادة الاتصال {retry_count}/{MAX_RETRIES} بعد {retry_delay} ثوانٍ...")
             
+            # إذا وصلنا للحد الأقصى من المحاولات، سنقوم بتسجيل الخطأ والخروج
             if retry_count == MAX_RETRIES and MAX_RETRIES > 0:
                 logger.error("تم الوصول للحد الأقصى من محاولات إعادة الاتصال. إيقاف البوت.")
                 break
                 
+            # انتظار قبل إعادة المحاولة
             time.sleep(retry_delay)
             
         except Exception as e:

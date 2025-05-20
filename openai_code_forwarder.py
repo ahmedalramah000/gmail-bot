@@ -15,9 +15,11 @@ from datetime import datetime
 import logging
 from typing import Optional, List
 import asyncio
+import threading
 
-from telegram import Bot
+from telegram import Bot, Update
 from telegram.constants import ParseMode
+from telegram.ext import Application, CommandHandler, MessageHandler, filters, CallbackContext
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
@@ -31,6 +33,7 @@ from config import (
     TELEGRAM_CHAT_ID,
     EMAIL_CHECK_INTERVAL,
     EMAIL_SENDERS,
+    TARGET_EMAIL,
     GMAIL_API_SCOPES
 )
 
@@ -113,31 +116,55 @@ class TelegramClient:
         self.bot_token = bot_token
         self.chat_id = chat_id
         self.bot = Bot(token=bot_token)
+        self._loop = None  # Keep one event loop
+        self._max_retries = 3
     
     async def send_message_async(self, text: str) -> bool:
         """Send a message to the specified chat asynchronously."""
-        try:
-            await self.bot.send_message(
-                chat_id=self.chat_id, 
-                text=text,
-                parse_mode=ParseMode.HTML
-            )
-            return True
-        except Exception as e:
-            logger.error(f"Error sending message to Telegram: {e}")
-            return False
+        for attempt in range(self._max_retries):
+            try:
+                await self.bot.send_message(
+                    chat_id=self.chat_id, 
+                    text=text,
+                    parse_mode=ParseMode.HTML,
+                    # Increase timeout for stability
+                    read_timeout=30,
+                    write_timeout=30,
+                    connect_timeout=30,
+                    pool_timeout=30
+                )
+                return True
+            except Exception as e:
+                logger.error(f"Error sending message to Telegram (attempt {attempt+1}/{self._max_retries}): {e}")
+                if attempt < self._max_retries - 1:
+                    # Wait a bit before retrying
+                    await asyncio.sleep(2)
+                else:
+                    return False
             
     def send_message(self, text: str) -> bool:
         """Send a message to the specified chat (synchronous wrapper)."""
         try:
-            # Run the async function in a new event loop
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
+            # Create or reuse the event loop
+            try:
+                loop = asyncio.get_event_loop()
+                if loop.is_closed():
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
+            except RuntimeError:
+                # No event loop in current thread
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                
+            self._loop = loop
+            
+            # Run the async function in the loop
             result = loop.run_until_complete(self.send_message_async(text))
-            loop.close()
+            
+            # Don't close the loop
             return result
         except Exception as e:
-            logger.error(f"Error sending message to Telegram: {e}")
+            logger.error(f"Error in send_message: {e}")
             return False
 
 
@@ -211,6 +238,78 @@ class OpenAICodeExtractor:
         return datetime.fromtimestamp(internal_date)
 
 
+class TelegramBotHandler:
+    """Handles Telegram bot commands."""
+    
+    def __init__(self, bot_token: str):
+        self.application = Application.builder().token(bot_token).build()
+        self._setup_handlers()
+        
+    def _setup_handlers(self):
+        """Set up command handlers."""
+        self.application.add_handler(CommandHandler("start", self._start_command))
+        self.application.add_handler(CommandHandler("help", self._help_command))
+        self.application.add_handler(CommandHandler("status", self._status_command))
+        # Add a default message handler for any other messages
+        self.application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, self._message_handler))
+        
+    async def _start_command(self, update: Update, context: CallbackContext):
+        """Handle the /start command."""
+        await update.message.reply_html(
+            f"🤖 <b>مرحباً بك في بوت أكواد التحقق OpenAI</b>\n\n"
+            f"البوت يراقب رسائل البريد الإلكتروني ويرسل لك أكواد التحقق من OpenAI تلقائياً.\n\n"
+            f"الأوامر المتاحة:\n"
+            f"/start - بدء استخدام البوت\n"
+            f"/help - عرض المساعدة\n"
+            f"/status - عرض حالة البوت\n\n"
+            f"البوت يعمل الآن ويراقب بريدك الإلكتروني."
+        )
+        
+    async def _help_command(self, update: Update, context: CallbackContext):
+        """Handle the /help command."""
+        await update.message.reply_html(
+            f"🤖 <b>مساعدة بوت أكواد التحقق OpenAI</b>\n\n"
+            f"البوت يراقب رسائل البريد الإلكتروني ويرسل لك أكواد التحقق من OpenAI تلقائياً.\n\n"
+            f"<b>الأوامر المتاحة:</b>\n"
+            f"/start - بدء استخدام البوت\n"
+            f"/help - عرض المساعدة\n"
+            f"/status - عرض حالة البوت\n\n"
+            f"<b>المرسلون المراقبون:</b>\n"
+            f"{', '.join(EMAIL_SENDERS)}\n\n"
+            f"<b>فترة المراقبة:</b> كل {EMAIL_CHECK_INTERVAL} ثانية"
+        )
+        
+    async def _status_command(self, update: Update, context: CallbackContext):
+        """Handle the /status command."""
+        await update.message.reply_html(
+            f"✅ <b>البوت يعمل بشكل طبيعي</b>\n\n"
+            f"<b>البريد المراقب:</b> {TARGET_EMAIL}\n"
+            f"<b>المرسلون المراقبون:</b> {', '.join(EMAIL_SENDERS)}\n"
+            f"<b>فترة المراقبة:</b> كل {EMAIL_CHECK_INTERVAL} ثانية\n\n"
+            f"<b>الحالة:</b> البوت يراقب بريدك الإلكتروني ويبحث عن أكواد التحقق من OpenAI."
+        )
+    
+    async def _message_handler(self, update: Update, context: CallbackContext):
+        """Handle regular text messages."""
+        await update.message.reply_html(
+            f"مرحباً! يمكنك استخدام الأوامر التالية:\n"
+            f"/start - بدء استخدام البوت\n"
+            f"/help - عرض المساعدة\n"
+            f"/status - عرض حالة البوت"
+        )
+    
+    def run(self):
+        """Run the Telegram bot in a separate thread."""
+        threading.Thread(target=self._run_polling, daemon=True).start()
+        
+    def _run_polling(self):
+        """Start the bot polling in a separate thread."""
+        try:
+            self.application.run_polling(allowed_updates=Update.ALL_TYPES)
+        except Exception as e:
+            logger.error(f"Error running Telegram bot polling: {e}")
+
+
 class CodeForwarder:
     """Main class that handles the email monitoring and code forwarding."""
     
@@ -242,48 +341,51 @@ class CodeForwarder:
         messages = self.gmail.list_messages(query)
         
         if not messages:
-            logger.info("No new OpenAI emails found")
             return
         
         # Process messages from newest to oldest
         messages.reverse()
         
         for msg_data in messages:
-            message = self.gmail.get_message(msg_data['id'])
-            if not message:
-                continue
-            
-            sender = OpenAICodeExtractor.get_sender(message)
-            if not sender or not any(s in sender for s in self.email_senders):
-                continue
-            
-            subject = OpenAICodeExtractor.get_subject(message)
-            received_time = OpenAICodeExtractor.get_received_time(message)
-            body = OpenAICodeExtractor.decode_email_body(message['payload'])
-            verification_code = OpenAICodeExtractor.extract_verification_code(body)
-            
-            if verification_code and verification_code not in self.processed_codes:
-                logger.info(f"Found new verification code: {verification_code}")
+            try:
+                message = self.gmail.get_message(msg_data['id'])
+                if not message:
+                    continue
                 
-                # Format the message for Telegram
-                time_str = received_time.strftime("%Y-%m-%d %H:%M:%S")
-                telegram_msg = (
-                    f"📬 <b>OpenAI Verification Code</b>\n\n"
-                    f"🔑 <code>{verification_code}</code>\n\n"
-                    f"📨 From: {sender}\n"
-                    f"📅 Time: {time_str}"
-                )
+                sender = OpenAICodeExtractor.get_sender(message)
+                if not sender or not any(s in sender for s in self.email_senders):
+                    continue
                 
-                # Send to Telegram
-                success = self.telegram.send_message(telegram_msg)
-                if success:
-                    logger.info(f"Sent code {verification_code} to Telegram")
-                    self.processed_codes.add(verification_code)
+                subject = OpenAICodeExtractor.get_subject(message)
+                received_time = OpenAICodeExtractor.get_received_time(message)
+                body = OpenAICodeExtractor.decode_email_body(message['payload'])
+                verification_code = OpenAICodeExtractor.extract_verification_code(body)
+                
+                if verification_code and verification_code not in self.processed_codes:
+                    logger.info(f"Found new verification code: {verification_code}")
                     
-                    # Limit the size of processed_codes to avoid memory issues
-                    if len(self.processed_codes) > 100:
-                        # Keep only the most recent 50 codes
-                        self.processed_codes = set(list(self.processed_codes)[-50:])
+                    # Format the message for Telegram
+                    time_str = received_time.strftime("%Y-%m-%d %H:%M:%S")
+                    telegram_msg = (
+                        f"📬 <b>OpenAI Verification Code</b>\n\n"
+                        f"🔑 <code>{verification_code}</code>\n\n"
+                        f"📨 From: {sender}\n"
+                        f"📅 Time: {time_str}"
+                    )
+                    
+                    # Send to Telegram
+                    success = self.telegram.send_message(telegram_msg)
+                    if success:
+                        logger.info(f"Sent code {verification_code} to Telegram")
+                        self.processed_codes.add(verification_code)
+                        
+                        # Limit the size of processed_codes to avoid memory issues
+                        if len(self.processed_codes) > 100:
+                            # Keep only the most recent 50 codes
+                            self.processed_codes = set(list(self.processed_codes)[-50:])
+            except Exception as e:
+                logger.error(f"Error processing message {msg_data.get('id', 'unknown')}: {e}")
+                continue  # Continue to the next message
     
     def run(self) -> None:
         """Run the forwarder in a loop."""
@@ -298,6 +400,7 @@ class CodeForwarder:
                 self.process_new_emails()
             except Exception as e:
                 logger.error(f"Error in processing loop: {e}")
+                # Don't stop on errors, just continue
             
             time.sleep(self.check_interval)
 
@@ -322,6 +425,10 @@ def main():
             f"Please follow the setup instructions in the README."
         )
         exit(1)
+    
+    # Start the Telegram bot handler
+    bot_handler = TelegramBotHandler(TELEGRAM_BOT_TOKEN)
+    bot_handler.run()
     
     # Create and run the forwarder
     forwarder = CodeForwarder(
