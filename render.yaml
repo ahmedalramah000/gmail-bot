@@ -1,0 +1,25 @@
+services:
+  - type: web
+    name: gmail-bot
+    env: python
+    region: frankfurt
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: python render_start.py
+    envVars:
+      - key: TELEGRAM_BOT_TOKEN
+        value: 7698638945:AAG9v9FgDUbe4gpN4IBFc1LlBjkaX9-K0xw
+      - key: TARGET_EMAIL
+        value: ahmedalramah000@gmail.com
+      - key: PASSWORD
+        value: 0001A@hmEd_Ram4h!
+      - key: EMAIL_SENDERS
+        value: no-reply@openai.com,login-code@openai.com,noreply@tm.openai.com
+      - key: CODE_SEARCH_MINUTES
+        value: 60
+      - key: RATE_LIMIT_PER_USER
+        value: 20
+      - key: USE_APP_PASSWORD
+        value: true
+      - key: APP_PASSWORD
+        sync: false 

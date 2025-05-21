@@ -15,10 +15,13 @@ app = Flask('')
 
 @app.route('/')
 def home():
-    return "I'm alive!"
+    return "بوت تلجرام للحصول على أكواد ChatGPT قيد التشغيل!"
 
 def run():
-    app.run(host='0.0.0.0', port=8080)
+    # قراءة PORT من متغيرات البيئة التي توفرها منصة Render
+    port = int(os.environ.get('PORT', 8080))
+    logger.info(f"تشغيل خادم الويب على المنفذ {port}")
+    app.run(host='0.0.0.0', port=port)
 
 def download_credentials():
     """وظيفة لتحميل ملفات الاعتماد من روابط مباشرة"""
@@ -53,6 +56,45 @@ def download_credentials():
                 logger.error(f"فشل تحميل token.json. رمز الحالة: {r.status_code}")
         except Exception as e:
             logger.error(f"خطأ أثناء تحميل token.json: {e}")
+    
+    # إنشاء ملفات وهمية إذا لم تكن موجودة ولم يتم تحديد روابط التحميل
+    if not os.path.exists("credentials.json.json") and not creds_url:
+        logger.info("إنشاء ملف credentials.json.json وهمي...")
+        dummy_credentials = {
+            "installed": {
+                "client_id": "dummy_client_id.apps.googleusercontent.com",
+                "project_id": "dummy-project",
+                "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+                "token_uri": "https://oauth2.googleapis.com/token",
+                "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+                "client_secret": "dummy_secret",
+                "redirect_uris": ["http://localhost"]
+            }
+        }
+        
+        with open('credentials.json.json', 'w', encoding='utf-8') as creds_file:
+            import json
+            json.dump(dummy_credentials, creds_file)
+        
+        logger.info("تم إنشاء ملف credentials.json.json وهمي بنجاح!")
+    
+    if not os.path.exists("token.json") and not token_url:
+        logger.info("إنشاء ملف token.json وهمي...")
+        dummy_token = {
+            "token": "dummy_token",
+            "refresh_token": "dummy_refresh_token",
+            "token_uri": "https://oauth2.googleapis.com/token",
+            "client_id": "dummy_client_id",
+            "client_secret": "dummy_secret",
+            "scopes": ["https://www.googleapis.com/auth/gmail.readonly"],
+            "expiry": "2099-12-31T23:59:59Z"
+        }
+        
+        with open('token.json', 'w', encoding='utf-8') as token_file:
+            import json
+            json.dump(dummy_token, token_file)
+        
+        logger.info("تم إنشاء ملف token.json وهمي بنجاح!")
 
 def keep_alive():
     """الحفاظ على تشغيل البوت وتحميل ملفات الاعتماد"""
