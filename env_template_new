@@ -1,0 +1,23 @@
+# Telegram Bot Token
+TELEGRAM_BOT_TOKEN=your_telegram_bot_token
+
+# Admin Chat ID
+TELEGRAM_CHAT_ID=your_admin_chat_id
+
+# Gmail Authentication URLs
+CREDENTIALS_URL=https://drive.google.com/uc?export=download&id=your_credentials_id
+TOKEN_URL=https://drive.google.com/uc?export=download&id=your_token_id
+
+# Email Settings
+TARGET_EMAIL=ahmedalramah000@gmail.com
+PASSWORD=your_password
+EMAIL_SENDERS=no-reply@openai.com,login-code@openai.com,noreply@tm.openai.com
+CODE_SEARCH_MINUTES=60
+RATE_LIMIT_PER_USER=10
+
+# App Password
+USE_APP_PASSWORD=false
+APP_PASSWORD=
+
+# Tutorial Video
+TUTORIAL_VIDEO_FILE_ID= 

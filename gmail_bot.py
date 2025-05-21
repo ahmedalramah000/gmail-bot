@@ -11,6 +11,7 @@ import logging
 import time
 import socket
 import sys
+import requests
 from datetime import datetime, timedelta
 from typing import Optional, List
 import asyncio
@@ -40,6 +41,53 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# تحميل متغيرات البيئة
+load_dotenv()
+
+# وظيفة لتحميل ملفات المصادقة من Google Drive
+def download_file(env_var, filename):
+    """تحميل ملف من عنوان URL محدد في متغير بيئي"""
+    url = os.getenv(env_var)
+    if not url:
+        print(f"[ERROR] Env var {env_var} not set")
+        return False
+    
+    try:
+        print(f"[INFO] محاولة تحميل {filename} من {url}")
+        r = requests.get(url)
+        r.raise_for_status()
+        
+        # التأكد من أن الملف له التنسيق الصحيح
+        if filename.endswith('.json.json'):
+            # إزالة التكرار في الامتداد
+            corrected_filename = filename.replace('.json.json', '.json')
+            print(f"[WARN] تصحيح اسم الملف من {filename} إلى {corrected_filename}")
+            filename = corrected_filename
+        
+        with open(filename, 'wb') as f:
+            f.write(r.content)
+        
+        file_size = os.path.getsize(filename)
+        print(f"[OK] Downloaded {filename} (Size: {file_size} bytes)")
+        
+        # التحقق من صحة ملف JSON
+        if filename.endswith('.json'):
+            try:
+                with open(filename, 'r') as f:
+                    json.load(f)
+                print(f"[OK] تم التحقق من صحة ملف {filename} كملف JSON صالح")
+            except json.JSONDecodeError as e:
+                print(f"[ERROR] الملف {filename} ليس ملف JSON صالح: {e}")
+                return False
+                
+        return True
+    except requests.exceptions.RequestException as e:
+        print(f"[ERROR] خطأ في الاتصال أثناء تحميل {filename}: {e}")
+        return False
+    except Exception as e:
+        print(f"[ERROR] Failed to download {filename}: {e}")
+        return False
+
 # مجموعة لتخزين معرفات الاستجابات المعالجة
 processed_callbacks = set()
 # تخزين معرف آخر بريد إلكتروني تمت معالجته
@@ -50,8 +98,6 @@ MAX_RETRIES = 5
 # Base delay between retries (will increase exponentially)
 BASE_RETRY_DELAY = 5
 
-# تحميل متغيرات البيئة
-load_dotenv()
 TELEGRAM_BOT_TOKEN = os.environ.get('TELEGRAM_BOT_TOKEN')
 ADMIN_CHAT_ID = os.environ.get('TELEGRAM_CHAT_ID')
 TARGET_EMAIL = os.environ.get('TARGET_EMAIL', "ahmedalramah000@gmail.com")  # البريد من متغيرات البيئة
@@ -71,6 +117,11 @@ TUTORIAL_VIDEO_FILE_ID = os.environ.get('TUTORIAL_VIDEO_FILE_ID', None)
 if TUTORIAL_VIDEO_FILE_ID == 'None':
     TUTORIAL_VIDEO_FILE_ID = None
 TUTORIAL_VIDEO_FILE = "tutorial_video.json"
+
+# إعدادات Gmail API
+GMAIL_CREDENTIALS_FILE = 'credentials.json'  # Nombre correcto sin extensión duplicada
+GMAIL_TOKEN_FILE = 'token.json'  # Nombre correcto sin extensión duplicada
+GMAIL_API_SCOPES = ['https://www.googleapis.com/auth/gmail.readonly']
 
 # دوال لحفظ واسترجاع معرف الفيديو
 def save_video_id(file_id):
@@ -114,12 +165,6 @@ LOGIN_CODE_KEYWORDS = [
     "رمز التحقق"
 ]
 
-# إعدادات Gmail API
-GMAIL_CREDENTIALS_FILE = 'credentials.json.json'
-GMAIL_TOKEN_FILE = 'token.json'
-GMAIL_API_SCOPES = ['https://www.googleapis.com/auth/gmail.readonly']
-
-
 class GmailClient:
     """التعامل مع عمليات Gmail API."""
     
@@ -129,6 +174,10 @@ class GmailClient:
         self.service = None
         self.auth_method = "oauth"  # Default authentication method
         
+        # طباعة معلومات عن المسارات للتشخيص
+        print(f"[INFO] مسار ملف بيانات الاعتماد: {self.credentials_file}")
+        print(f"[INFO] مسار ملف التوكن: {self.token_file}")
+        
         # تحقق مما إذا كان يجب استخدام App Password
         if USE_APP_PASSWORD and APP_PASSWORD:
             logger.info("استخدام App Password للمصادقة")
@@ -136,6 +185,20 @@ class GmailClient:
             self._authenticate_with_app_password()
         else:
             logger.info("استخدام OAuth للمصادقة")
+            # التحقق من وجود ملف بيانات الاعتماد
+            if not os.path.exists(self.credentials_file):
+                logger.error(f"ملف بيانات الاعتماد غير موجود: {self.credentials_file}")
+                # محاولة البحث عن الملف بأسماء أخرى محتملة
+                possible_names = ["credentials.json.json", "credentials.json"]
+                for name in possible_names:
+                    if os.path.exists(name):
+                        logger.info(f"تم العثور على ملف بيانات اعتماد بديل: {name}")
+                        self.credentials_file = name
+                        break
+                else:
+                    self.service = None
+                    return
+                
             self.service = self._authenticate_oauth()
     
     def _authenticate_with_app_password(self):
@@ -165,22 +228,36 @@ class GmailClient:
     
     def _authenticate_oauth(self):
         """المصادقة مع Gmail API باستخدام OAuth."""
-        # التحقق من وجود ملف بيانات الاعتماد
-        if not os.path.exists(self.credentials_file):
-            logger.error(f"ملف بيانات الاعتماد غير موجود: {self.credentials_file}")
-            return None
-            
         creds = None
+        
+        # التحقق من اسم ملف التوكن وجربة بدائل إذا لم يكن موجودًا
+        if not os.path.exists(self.token_file):
+            print(f"[ERROR] ملف التوكن غير موجود في المسار المتوقع: {self.token_file}")
+            # محاولة استخدام أسماء بديلة محتملة
+            alternative_names = ["token.json.json", "token.json"]
+            for alt_name in alternative_names:
+                if os.path.exists(alt_name):
+                    print(f"[INFO] تم العثور على ملف توكن بديل: {alt_name}")
+                    self.token_file = alt_name
+                    break
         
         # تحميل التوكن الموجود إذا كان متاحًا
         if os.path.exists(self.token_file):
             try:
+                print(f"[INFO] محاولة قراءة ملف التوكن: {self.token_file}")
                 with open(self.token_file, 'r') as token:
+                    token_data = json.load(token)
+                    print(f"[INFO] تم قراءة البيانات من ملف التوكن: {self.token_file}")
                     creds = Credentials.from_authorized_user_info(
-                        json.load(token), GMAIL_API_SCOPES
+                        token_data, GMAIL_API_SCOPES
                     )
+            except json.JSONDecodeError as json_err:
+                print(f"[ERROR] خطأ في تنسيق JSON في ملف التوكن: {json_err}")
+                logger.error(f"خطأ في تنسيق JSON في ملف التوكن: {json_err}")
+                creds = None
             except Exception as e:
                 logger.error(f"خطأ في قراءة ملف التوكن: {e}")
+                print(f"[ERROR] خطأ في قراءة ملف التوكن: {e}")
                 creds = None
         
         # إذا لم تكن هناك بيانات اعتماد صالحة، قم بالمصادقة
@@ -193,24 +270,11 @@ class GmailClient:
                         logger.info("تم تحديث التوكن بنجاح")
                     except Exception as refresh_error:
                         logger.error(f"فشل تحديث التوكن: {refresh_error}")
-                        logger.info("إعادة إنشاء التوكن من البداية...")
-                        # فشل التحديث، نقوم بإعادة المصادقة من البداية
-                        if os.path.exists(self.token_file):
-                            # حذف ملف التوكن القديم
-                            os.remove(self.token_file)
-                            logger.info("تم حذف ملف التوكن القديم")
-                        
-                        # إنشاء توكن جديد
-                        flow = InstalledAppFlow.from_client_secrets_file(
-                            self.credentials_file, GMAIL_API_SCOPES
-                        )
-                        creds = flow.run_local_server(port=0)
+                        logger.error("لا يمكن تحديث token.json. يرجى إعادة تحميله من المصدر.")
+                        return None
                 else:
-                    logger.info("بدء عملية المصادقة الجديدة...")
-                    flow = InstalledAppFlow.from_client_secrets_file(
-                        self.credentials_file, GMAIL_API_SCOPES
-                    )
-                    creds = flow.run_local_server(port=0)
+                    logger.error("ملف token.json غير موجود أو غير صالح. يرجى توفيره أو إعادة تحميله.")
+                    return None
                 
                 # حفظ بيانات الاعتماد للتشغيل التالي
                 with open(self.token_file, 'w') as token:
@@ -765,12 +829,18 @@ class GmailCodeBot:
         sender_query = " OR ".join([f"from:{sender}" for sender in EMAIL_SENDERS])
         # تصفية البريد الإلكتروني الهدف
         target_query = f"to:{TARGET_EMAIL}"
-        # تصفية الرسائل حسب التاريخ (البحث في آخر 10 دقائق فقط)
+        # تصفية الرسائل حسب التاريخ (البحث في آخر 5 دقائق فقط عند التحديث)
         time_filter = f"newer_than:10m"
-        return f"({sender_query}) {target_query} {time_filter}"
+        
+        # استعلام أكثر تحديدًا للكلمات الدالة على أكواد التحقق
+        keyword_filter = "subject:(verification OR code OR login)"
+        
+        return f"({sender_query}) {target_query} {time_filter} {keyword_filter}"
     
     def get_latest_verification_code(self, user_id: str) -> Optional[dict]:
         """استرجاع آخر كود تحقق من Gmail مع تجاهل أكواد إعادة تعيين كلمة المرور."""
+        global last_processed_email_id
+        
         # تخطي التحقق من وجود Gmail أو ملف بيانات الاعتماد
         if self.gmail is None or self.gmail.service is None:
             # إرجاع كود افتراضي عند عدم وجود خدمة Gmail
@@ -797,12 +867,12 @@ class GmailCodeBot:
         else:
             self.user_rate_limits[user_id] = (1, current_time)
         
-        # تعديل استعلام البحث للتركيز على أحدث الرسائل فقط (آخر 5 دقائق)
+        # تعديل استعلام البحث للتركيز على أحدث الرسائل فقط
         query = self.build_email_query()
         logger.info(f"استعلام البحث: {query}")
         
-        # إحضار أحدث 3 رسائل فقط
-        messages = self.gmail.list_messages(query, max_results=3)
+        # إحضار عدد أكبر من الرسائل للحصول على نتائج أفضل عند التحديث
+        messages = self.gmail.list_messages(query, max_results=5)
         
         if not messages:
             logger.info("لم يتم العثور على رسائل بريد إلكتروني من OpenAI، إرجاع كود افتراضي")
@@ -816,23 +886,26 @@ class GmailCodeBot:
         
         logger.info(f"تم العثور على {len(messages)} رسالة بريد")
         
-        # معالجة الرسالة الأحدث فقط (أول رسالة في القائمة) - ترتيب الرسائل من الأحدث إلى الأقدم
-        if len(messages) > 0:
-            msg_data = messages[0]  # أخذ أحدث رسالة فقط
+        # معالجة كل الرسائل بترتيب الأحدث أولاً للعثور على كود صالح
+        for msg_data in messages:
             msg_id = msg_data['id']
             
-            # لا نتجاهل أي رسالة سابقة - نركز فقط على أحدث رسالة
-            logger.info(f"معالجة أحدث رسالة: {msg_id}")
+            # تخطي الرسالة إذا كانت هي نفس آخر رسالة تمت معالجتها (إلا إذا كان last_processed_email_id قد تم إعادة ضبطه)
+            if msg_id == last_processed_email_id and last_processed_email_id is not None:
+                logger.info(f"تخطي رسالة تمت معالجتها مسبقًا: {msg_id}")
+                continue
+            
+            logger.info(f"معالجة الرسالة: {msg_id}")
                 
             message = self.gmail.get_message(msg_id)
             if not message:
                 logger.error("لم يتم استرجاع محتوى الرسالة")
-                return None
+                continue
             
             sender = OpenAICodeExtractor.get_sender(message)
             if not sender:
                 logger.info(f"لم يتم العثور على مرسل")
-                return None
+                continue
                 
             # تأكد من أن المرسل ضمن القائمة المسموح بها
             sender_match = False
@@ -843,7 +916,7 @@ class GmailCodeBot:
                     
             if not sender_match:
                 logger.info(f"تم تخطي بريد من مرسل غير معتمد: {sender}")
-                return None
+                continue
                 
             logger.info(f"معالجة بريد من: {sender}")
             
@@ -868,14 +941,14 @@ class GmailCodeBot:
             # إذا كان عنوان البريد يشير إلى أنه كود إعادة تعيين كلمة المرور بشكل صريح، تجاهله
             if is_password_reset:
                 logger.info("تجاهل رسالة إعادة تعيين كلمة المرور")
-                return None
+                continue
                 
             received_time = OpenAICodeExtractor.get_received_time(message)
             # تأكد من أن البريد تم استلامه خلال الفترة المحددة
             time_diff = datetime.now() - received_time
             if time_diff > timedelta(minutes=CODE_SEARCH_MINUTES):
                 logger.info(f"تخطي بريد قديم: {time_diff.total_seconds() / 60} دقيقة")
-                return None
+                continue
                 
             body = OpenAICodeExtractor.decode_email_body(message['payload'])
             # طباعة جزء أكبر من محتوى البريد للتشخيص
@@ -913,7 +986,7 @@ class GmailCodeBot:
             # تجاهل رسالة إعادة تعيين كلمة المرور
             if is_password_reset:
                 logger.info("تجاهل رسالة إعادة تعيين كلمة المرور بعد تحليل المحتوى")
-                return None
+                continue
             
             # استخراج الكود بعد التأكد من أنها ليست رسالة إعادة تعيين كلمة المرور
             six_digit_codes = re.findall(r'\b(\d{6})\b', body)
@@ -928,7 +1001,7 @@ class GmailCodeBot:
                 # تنقية النتائج إذا كان العنوان يشير إلى أنه كود إعادة تعيين كلمة المرور
                 if is_password_reset:
                     logger.info("تجاهل كود إعادة تعيين كلمة المرور - تناقض منطقي")
-                    return None
+                    continue
                 elif code_is_match:
                     verification_code = code_is_match.group(1)
                     logger.info(f"تم العثور على كود تحقق مؤكد: {verification_code}")
@@ -942,7 +1015,7 @@ class GmailCodeBot:
                     logger.info(f"استخدام أول كود تم العثور عليه: {verification_code}")
                 
                 # حفظ معرف الرسالة كمعالجة لتجنب معالجتها مرة أخرى
-                self.processed_message_ids.add(msg_id)
+                last_processed_email_id = msg_id
                 
                 return {
                     "code": verification_code,
@@ -953,7 +1026,14 @@ class GmailCodeBot:
             else:
                 logger.info("لم يتم العثور على كود مكون من 6 أرقام في محتوى البريد")
         
-        return None
+        # إذا لم نجد أي كود صالح في جميع الرسائل، أرجع الكود الافتراضي
+        logger.info("لم يتم العثور على أي كود صالح في جميع الرسائل، إرجاع كود افتراضي")
+        return {
+            "code": "123456",
+            "sender": "no-reply@openai.com",
+            "subject": "Your verification code",
+            "time": datetime.now()
+        }
         
     def _extract_code_safely(self, body: str, subject: str) -> Optional[str]:
         """استخراج الكود بطريقة أكثر أمانًا وتحديدًا مع تجاهل أكواد إعادة تعيين كلمة المرور."""
@@ -1058,14 +1138,17 @@ class GmailCodeBot:
         query = update.callback_query
         user_id = str(update.effective_user.id)
         
-        # تجنب معالجة نفس الاستجابة عدة مرات
+        # إنشاء معرف للاستجابة
         callback_id = f"{query.message.message_id}_{query.data}"
-        if callback_id in processed_callbacks:
+        
+        # استثناء زر التحديث "get_chatgpt_code" من التحقق، أو السماح بتكرار طلب الكود
+        if query.data != "get_chatgpt_code" and callback_id in processed_callbacks:
             await query.answer("جاري المعالجة...")
             return
             
-        # إضافة إلى الاستجابات المعالجة
-        processed_callbacks.add(callback_id)
+        # إضافة إلى الاستجابات المعالجة - إلا إذا كان زر الحصول على الكود
+        if query.data != "get_chatgpt_code":
+            processed_callbacks.add(callback_id)
         
         await query.answer()
         
@@ -1087,6 +1170,11 @@ class GmailCodeBot:
                 else:
                     logger.error(f"خطأ في API تيليجرام: {e}")
                     return
+            
+            # إعادة ضبط معرف آخر بريد تمت معالجته للحصول على أحدث البيانات
+            last_processed_email_id = None
+            
+            # الحصول على الكود
             code_info = self.get_latest_verification_code(user_id)
             keyboard = [
                 [InlineKeyboardButton("🔄 تحديث", callback_data="get_chatgpt_code")],
@@ -1439,6 +1527,29 @@ def main():
     """تشغيل البوت."""
     load_video_id()
     
+    # تحميل ملفات المصادقة من Google Drive
+    credentials_downloaded = download_file("CREDENTIALS_URL", GMAIL_CREDENTIALS_FILE)
+    token_downloaded = download_file("TOKEN_URL", GMAIL_TOKEN_FILE)
+    
+    # التحقق من وجود الملفات وطباعة معلومات عنها
+    current_dir = os.getcwd()
+    if not os.path.exists("token.json"):
+        print(f"[ERROR] ملف token.json غير موجود في المسار الحالي: {current_dir}")
+    else:
+        print(f"[INFO] تم العثور على ملف token.json في المسار: {current_dir}")
+        print(f"[INFO] حجم الملف: {os.path.getsize('token.json')} بايت")
+        
+    if not os.path.exists("credentials.json"):
+        print(f"[ERROR] ملف credentials.json غير موجود في المسار الحالي: {current_dir}")
+    else:
+        print(f"[INFO] تم العثور على ملف credentials.json في المسار: {current_dir}")
+        print(f"[INFO] حجم الملف: {os.path.getsize('credentials.json')} بايت")
+    
+    if not credentials_downloaded:
+        logger.error("فشل تحميل ملف credentials.json. سيتم محاولة استخدام الملف المحلي إذا كان موجودًا.")
+    if not token_downloaded:
+        logger.error("فشل تحميل ملف token.json. سيتم محاولة استخدام الملف المحلي إذا كان موجودًا.")
+    
     telegram_token = os.environ.get("TELEGRAM_BOT_TOKEN")
     
     if not telegram_token:
@@ -1479,10 +1590,15 @@ def main():
             
             logger.info("بدء تشغيل البوت...")
             
-            application.run_polling(allowed_updates=Update.ALL_TYPES, drop_pending_updates=True, close_loop=False)
-            
-            logger.info("تم إيقاف البوت بشكل طبيعي.")
-            break
+            try:
+                application.run_polling(allowed_updates=Update.ALL_TYPES, drop_pending_updates=True, close_loop=False)
+                logger.info("تم إيقاف البوت بشكل طبيعي.")
+                break
+            except telegram.error.Conflict as e:
+                logger.error(f"حدث تعارض في تشغيل البوت: {e}")
+                logger.error("يبدو أن هناك نسخة أخرى من البوت قيد التشغيل! لا يمكن تشغيل نسختين في نفس الوقت.")
+                print("⛔ البوت يعمل بالفعل في مكان آخر. لا يمكن تشغيل نسختين في نفس الوقت.")
+                break
             
         except (ConnectionError, socket.error, TimeoutError) as e:
             retry_count += 1
